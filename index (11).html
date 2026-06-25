@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Sokoni — Order Food, Groceries & More</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+  :root {
+    --bg: #0f0f0f;
+    --surface: #181818;
+    --surface2: #222222;
+    --border: #2a2a2a;
+    --accent: #FF6B2C;
+    --accent2: #FFB347;
+    --text: #f5f5f5;
+    --muted: #888;
+    --green: #22c55e;
+    --radius: 14px;
+    --font: 'Plus Jakarta Sans', sans-serif;
+    --serif: 'Instrument Serif', serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font); min-height: 100vh; }
+
+  /* ── MODALS ── */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.75); z-index: 1000; align-items: center; justify-content: center; padding: 16px; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 32px; width: 100%; max-width: 420px; }
+  .modal h2 { font-size: 1.5rem; margin-bottom: 8px; }
+  .modal p { color: var(--muted); font-size: .9rem; margin-bottom: 24px; }
+  .form-group { margin-bottom: 16px; }
+  .form-group label { display: block; font-size: .85rem; font-weight: 600; margin-bottom: 6px; color: var(--muted); letter-spacing: .04em; }
+  .form-group input, .form-group select { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; color: var(--text); font-family: var(--font); font-size: .95rem; outline: none; transition: border-color .2s; }
+  .form-group input:focus, .form-group select:focus { border-color: var(--accent); }
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 12px 20px; border-radius: 10px; font-family: var(--font); font-weight: 700; font-size: .95rem; cursor: pointer; border: none; transition: all .2s; }
+  .btn-primary { background: var(--accent); color: #fff; width: 100%; }
+  .btn-primary:hover { background: #e5571e; }
+  .btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+  .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+  .modal-footer { text-align: center; margin-top: 16px; font-size: .85rem; color: var(--muted); }
+  .modal-footer a { color: var(--accent); cursor: pointer; text-decoration: none; }
+  .auth-tabs { display: flex; gap: 4px; background: var(--surface2); border-radius: 10px; padding: 4px; margin-bottom: 24px; }
+  .auth-tab { flex: 1; padding: 8px; text-align: center; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: .9rem; color: var(--muted); transition: all .2s; }
+  .auth-tab.active { background: var(--accent); color: #fff; }
+  .close-btn { float: right; background: none; border: none; color: var(--muted); font-size: 1.4rem; cursor: pointer; line-height: 1; }
+  .close-btn:hover { color: var(--text); }
+
+  /* ── TOPBAR ── */
+  .topbar { position: sticky; top: 0; z-index: 100; background: rgba(15,15,15,.92); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); }
+  .topbar-inner { max-width: 1200px; margin: 0 auto; padding: 0 20px; height: 60px; display: flex; align-items: center; gap: 16px; }
+  .logo { font-family: var(--serif); font-size: 1.5rem; color: var(--accent); font-style: italic; flex-shrink: 0; }
+  .search-wrap { flex: 1; max-width: 480px; position: relative; }
+  .search-wrap input { width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 9px 14px 9px 38px; color: var(--text); font-family: var(--font); font-size: .9rem; outline: none; transition: border-color .2s; }
+  .search-wrap input:focus { border-color: var(--accent); }
+  .search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 1rem; }
+  .topbar-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+  .location-badge { display: flex; align-items: center; gap: 6px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 7px 12px; font-size: .82rem; color: var(--muted); cursor: pointer; white-space: nowrap; }
+  .location-badge:hover { border-color: var(--accent); color: var(--text); }
+  .cart-btn { position: relative; background: var(--accent); border: none; border-radius: 10px; padding: 8px 14px; color: #fff; font-family: var(--font); font-weight: 700; font-size: .9rem; cursor: pointer; display: flex; align-items: center; gap: 6px; }
+  .cart-badge { position: absolute; top: -6px; right: -6px; background: var(--accent2); color: #000; border-radius: 999px; min-width: 18px; height: 18px; font-size: .7rem; font-weight: 800; display: flex; align-items: center; justify-content: center; padding: 0 4px; }
+  .user-btn { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 8px 14px; color: var(--text); font-family: var(--font); font-weight: 600; font-size: .88rem; cursor: pointer; display: flex; align-items: center; gap: 6px; }
+  .user-btn:hover { border-color: var(--accent); }
+
+  /* ── HERO ── */
+  .hero { background: linear-gradient(135deg, #1a0a00 0%, #0f0f0f 60%); padding: 56px 20px; }
+  .hero-inner { max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 40px; align-items: center; }
+  .hero h1 { font-family: var(--serif); font-size: clamp(2rem, 4vw, 3.2rem); line-height: 1.15; margin-bottom: 16px; }
+  .hero h1 em { color: var(--accent); font-style: italic; }
+  .hero p { color: var(--muted); font-size: 1.05rem; max-width: 420px; line-height: 1.65; margin-bottom: 28px; }
+  .hero-btns { display: flex; gap: 12px; flex-wrap: wrap; }
+  .hero-map-preview { background: var(--surface); border: 1px solid var(--border); border-radius: 18px; overflow: hidden; height: 260px; }
+  #hero-map { height: 100%; width: 100%; }
+
+  /* ── CATEGORIES ── */
+  .section { max-width: 1200px; margin: 0 auto; padding: 40px 20px 0; }
+  .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+  .section-title { font-size: 1.3rem; font-weight: 800; }
+  .see-all { color: var(--accent); font-size: .88rem; font-weight: 600; cursor: pointer; text-decoration: none; }
+  .cats { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 8px; -ms-overflow-style: none; scrollbar-width: none; }
+  .cats::-webkit-scrollbar { display: none; }
+  .cat-pill { flex-shrink: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 999px; padding: 8px 18px; font-size: .88rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: all .2s; white-space: nowrap; }
+  .cat-pill.active, .cat-pill:hover { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  /* ── SHOP CARDS ── */
+  .shops-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 20px; }
+  .shop-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; cursor: pointer; transition: all .2s; }
+  .shop-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+  .shop-img { height: 140px; width: 100%; object-fit: cover; background: var(--surface2); display: flex; align-items: center; justify-content: center; font-size: 3rem; }
+  .shop-body { padding: 14px; }
+  .shop-name { font-weight: 700; font-size: 1rem; margin-bottom: 4px; }
+  .shop-meta { display: flex; align-items: center; gap: 12px; font-size: .82rem; color: var(--muted); margin-bottom: 8px; }
+  .shop-tag { display: inline-block; background: var(--surface2); border-radius: 6px; padding: 2px 8px; font-size: .75rem; font-weight: 600; }
+  .shop-tag.food { color: #f59e0b; }
+  .shop-tag.grocery { color: #22c55e; }
+  .shop-tag.pharmacy { color: #60a5fa; }
+  .shop-tag.supermarket { color: #a78bfa; }
+  .rating { display: flex; align-items: center; gap: 4px; color: var(--accent2); font-weight: 700; }
+  .distance { color: var(--muted); }
+
+  /* ── MAP VIEW SECTION ── */
+  .map-section { max-width: 1200px; margin: 40px auto 0; padding: 0 20px; }
+  .map-section-title { font-size: 1.3rem; font-weight: 800; margin-bottom: 16px; }
+  #main-map { height: 380px; border-radius: var(--radius); border: 1px solid var(--border); overflow: hidden; }
+
+  /* ── SHOP DETAIL PANEL ── */
+  .side-panel { position: fixed; right: 0; top: 0; bottom: 0; width: 420px; background: var(--surface); border-left: 1px solid var(--border); z-index: 200; transform: translateX(100%); transition: transform .3s cubic-bezier(.4,0,.2,1); display: flex; flex-direction: column; }
+  .side-panel.open { transform: translateX(0); }
+  .side-panel-header { padding: 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 12px; }
+  .side-panel-title { font-weight: 800; font-size: 1.1rem; flex: 1; }
+  .side-panel-body { flex: 1; overflow-y: auto; padding: 20px; }
+  .product-list { display: flex; flex-direction: column; gap: 14px; }
+  .product-item { background: var(--surface2); border-radius: 10px; padding: 14px; display: flex; align-items: center; gap: 14px; }
+  .product-emoji { font-size: 1.8rem; width: 48px; height: 48px; background: var(--surface); border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .product-info { flex: 1; }
+  .product-name { font-weight: 700; font-size: .95rem; margin-bottom: 2px; }
+  .product-price { color: var(--accent); font-weight: 800; font-size: 1rem; }
+  .product-desc { color: var(--muted); font-size: .8rem; margin-top: 2px; }
+  .add-btn { background: var(--accent); border: none; border-radius: 8px; color: #fff; width: 32px; height: 32px; font-size: 1.2rem; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-weight: 800; transition: background .2s; }
+  .add-btn:hover { background: #e5571e; }
+
+  /* ── CART PANEL ── */
+  .cart-panel { position: fixed; right: 0; top: 0; bottom: 0; width: 380px; background: var(--surface); border-left: 1px solid var(--border); z-index: 300; transform: translateX(100%); transition: transform .3s cubic-bezier(.4,0,.2,1); display: flex; flex-direction: column; }
+  .cart-panel.open { transform: translateX(0); }
+  .cart-header { padding: 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 12px; }
+  .cart-body { flex: 1; overflow-y: auto; padding: 16px; }
+  .cart-item { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+  .cart-item-info { flex: 1; }
+  .cart-item-name { font-weight: 700; font-size: .9rem; }
+  .cart-item-price { color: var(--muted); font-size: .82rem; margin-top: 2px; }
+  .qty-ctrl { display: flex; align-items: center; gap: 8px; }
+  .qty-btn { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-weight: 700; color: var(--text); font-size: .9rem; }
+  .qty-btn:hover { border-color: var(--accent); }
+  .cart-footer { padding: 16px; border-top: 1px solid var(--border); }
+  .cart-total { display: flex; justify-content: space-between; align-items: center; font-size: 1.1rem; font-weight: 800; margin-bottom: 14px; }
+  .empty-cart { text-align: center; padding: 60px 20px; color: var(--muted); }
+  .empty-cart .icon { font-size: 3rem; margin-bottom: 12px; }
+
+  /* ── TOAST ── */
+  .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px); background: var(--green); color: #fff; padding: 12px 24px; border-radius: 10px; font-weight: 700; font-size: .9rem; z-index: 9999; transition: transform .3s; }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 768px) {
+    .hero-inner { grid-template-columns: 1fr; }
+    .hero-map-preview { height: 200px; }
+    .side-panel, .cart-panel { width: 100%; }
+    .topbar-inner { gap: 10px; }
+    .location-badge { display: none; }
+  }
+
+  /* scrollbar */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  .divider { height: 1px; background: var(--border); max-width: 1200px; margin: 40px auto 0; }
+
+  .footer { text-align: center; padding: 40px 20px; color: var(--muted); font-size: .85rem; }
+  .footer span { color: var(--accent); }
+</style>
+</head>
+<body>
+
+<!-- AUTH MODAL -->
+<div class="modal-overlay" id="auth-modal">
+  <div class="modal">
+    <button class="close-btn" onclick="closeModal('auth-modal')">×</button>
+    <h2>Welcome to <span style="color:var(--accent);font-family:var(--serif);font-style:italic">Sokoni</span></h2>
+    <p id="auth-subtitle">Sign in to place orders and track deliveries.</p>
+    <div class="auth-tabs">
+      <div class="auth-tab active" id="tab-login" onclick="switchTab('login')">Sign In</div>
+      <div class="auth-tab" id="tab-signup" onclick="switchTab('signup')">Sign Up</div>
+    </div>
+    <div id="login-form">
+      <div class="form-group"><label>Email</label><input type="email" id="login-email" placeholder="you@email.com"/></div>
+      <div class="form-group"><label>Password</label><input type="password" id="login-password" placeholder="••••••••"/></div>
+      <button class="btn btn-primary" onclick="doLogin()">Sign In</button>
+    </div>
+    <div id="signup-form" style="display:none">
+      <div class="form-group"><label>Full Name</label><input type="text" id="signup-name" placeholder="Alvin Charles"/></div>
+      <div class="form-group"><label>Email</label><input type="email" id="signup-email" placeholder="you@email.com"/></div>
+      <div class="form-group"><label>Phone</label><input type="tel" id="signup-phone" placeholder="+255 7XX XXX XXX"/></div>
+      <div class="form-group"><label>Password</label><input type="password" id="signup-password" placeholder="Min 6 characters"/></div>
+      <div class="form-group"><label>Account Type</label>
+        <select id="signup-role">
+          <option value="customer">Customer</option>
+          <option value="vendor">Vendor (I own a shop)</option>
+        </select>
+      </div>
+      <button class="btn btn-primary" onclick="doSignup()">Create Account</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOPBAR -->
+<header class="topbar">
+  <div class="topbar-inner">
+    <div class="logo">Sokoni</div>
+    <div class="search-wrap">
+      <span class="search-icon">🔍</span>
+      <input type="text" placeholder="Search shops, food, medicine…" oninput="filterShops(this.value)"/>
+    </div>
+    <div class="topbar-right">
+      <div class="location-badge" onclick="locateMe()">📍 <span id="loc-text">Detect location</span></div>
+      <button class="user-btn" id="user-btn" onclick="openModal('auth-modal')">👤 Sign In</button>
+      <button class="cart-btn" onclick="toggleCart()">🛒 Cart <span class="cart-badge" id="cart-count">0</span></button>
+    </div>
+  </div>
+</header>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-inner">
+    <div>
+      <h1>Order food, groceries<br/>& more — <em>delivered fast</em></h1>
+      <p>Restaurants, supermarkets, pharmacies, and grocery stores near you. One app, everything you need.</p>
+      <div class="hero-btns">
+        <button class="btn btn-primary" onclick="locateMe()">📍 Find shops near me</button>
+        <button class="btn btn-ghost" onclick="openModal('auth-modal')">Sign up free →</button>
+      </div>
+    </div>
+    <div class="hero-map-preview">
+      <div id="hero-map"></div>
+    </div>
+  </div>
+</section>
+
+<!-- CATEGORIES -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-title">Browse by category</div>
+  </div>
+  <div class="cats">
+    <div class="cat-pill active" onclick="filterCat('all',this)">🌍 All</div>
+    <div class="cat-pill" onclick="filterCat('food',this)">🍔 Restaurants</div>
+    <div class="cat-pill" onclick="filterCat('grocery',this)">🥦 Groceries</div>
+    <div class="cat-pill" onclick="filterCat('supermarket',this)">🏪 Supermarkets</div>
+    <div class="cat-pill" onclick="filterCat('pharmacy',this)">💊 Pharmacies</div>
+  </div>
+</div>
+
+<!-- SHOPS GRID -->
+<div class="section" style="padding-top:24px">
+  <div class="section-header">
+    <div class="section-title" id="shops-heading">Nearby shops</div>
+    <a class="see-all">View all</a>
+  </div>
+  <div class="shops-grid" id="shops-grid"></div>
+</div>
+
+<!-- MAP SECTION -->
+<div class="map-section">
+  <div class="map-section-title">📍 Shops on the map</div>
+  <div id="main-map"></div>
+</div>
+
+<div class="divider"></div>
+<footer class="footer">Made in Tanzania 🇹🇿 · <span>Sokoni</span> · © 2025</footer>
+
+<!-- SHOP DETAIL PANEL -->
+<div class="side-panel" id="shop-panel">
+  <div class="side-panel-header">
+    <button class="qty-btn" onclick="closeShopPanel()">←</button>
+    <div class="side-panel-title" id="panel-shop-name">Shop</div>
+    <div id="panel-shop-tag" class="shop-tag"></div>
+  </div>
+  <div class="side-panel-body">
+    <div class="product-list" id="product-list"></div>
+  </div>
+</div>
+
+<!-- CART PANEL -->
+<div class="cart-panel" id="cart-panel">
+  <div class="cart-header">
+    <button class="qty-btn" onclick="toggleCart()">←</button>
+    <div class="side-panel-title">Your Cart</div>
+  </div>
+  <div class="cart-body" id="cart-body"></div>
+  <div class="cart-footer">
+    <div class="cart-total"><span>Total</span><span id="cart-total-price">TZS 0</span></div>
+    <button class="btn btn-primary" onclick="checkout()">Place Order →</button>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ── SUPABASE CONFIG ──
+const SUPABASE_URL = 'https://ppzrofbkwzxbdahtcybu.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBwenJvZmJrd3p4YmRhaHRjeWJ1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjQzMDcsImV4cCI6MjA5NzkwMDMwN30.kH73nfcpnLIsoXohYuGGtmfnf57Y3QGI0J5ipIYIGHY';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+// ── STATE ──
+let currentUser = null;
+let cart = [];
+let allShops = [];
+let mainMap = null;
+let heroMap = null;
+let userLat = -6.7924;
+let userLng = 39.2083;
+
+// ── DEMO DATA (replace with Supabase fetch) ──
+const DEMO_SHOPS = [
+  { id:1, name:'Mama Africa Kitchen', category:'food', rating:4.8, distance:'1.2 km', emoji:'🍛', lat:-6.791, lng:39.207, products:[
+    {id:1,name:'Ugali & Nyama',price:5500,emoji:'🍛',desc:'Traditional ugali with beef stew'},
+    {id:2,name:'Mishkaki',price:3500,emoji:'🍢',desc:'Grilled beef skewers'},
+    {id:3,name:'Pilau (Full)',price:6000,emoji:'🍚',desc:'Spiced rice with choice of protein'},
+    {id:4,name:'Fresh Juice',price:2000,emoji:'🥤',desc:'Mango, passion or tamarind'},
+  ]},
+  { id:2, name:'FreshMart Superstore', category:'supermarket', rating:4.5, distance:'0.8 km', emoji:'🏪', lat:-6.795, lng:39.210, products:[
+    {id:5,name:'Unga Sembe 2kg',price:4200,emoji:'🌾',desc:'Premium wheat flour'},
+    {id:6,name:'Cooking Oil 1L',price:6500,emoji:'🫙',desc:'Sunflower cooking oil'},
+    {id:7,name:'Sugar 1kg',price:3000,emoji:'🍬',desc:'White refined sugar'},
+    {id:8,name:'Eggs (Tray 30)',price:11000,emoji:'🥚',desc:'Fresh farm eggs'},
+  ]},
+  { id:3, name:'Dawa Plus Pharmacy', category:'pharmacy', rating:4.9, distance:'1.5 km', emoji:'💊', lat:-6.788, lng:39.205, products:[
+    {id:9,name:'Panadol Advance',price:1200,emoji:'💊',desc:'12 tablets, 500mg paracetamol'},
+    {id:10,name:'Amoxicillin 500mg',price:4500,emoji:'🔴',desc:'Antibiotic capsules ×10 (Rx)'},
+    {id:11,name:'Vitamin C 1000mg',price:3500,emoji:'🍊',desc:'Chewable tablets ×30'},
+    {id:12,name:'Hand Sanitizer',price:2500,emoji:'🧴',desc:'500ml, 70% alcohol'},
+  ]},
+  { id:4, name:'Green Leaf Groceries', category:'grocery', rating:4.6, distance:'0.5 km', emoji:'🥦', lat:-6.793, lng:39.213, products:[
+    {id:13,name:'Tomatoes 1kg',price:1500,emoji:'🍅',desc:'Fresh local tomatoes'},
+    {id:14,name:'Onions 1kg',price:1200,emoji:'🧅',desc:'Red onions'},
+    {id:15,name:'Spinach Bunch',price:800,emoji:'🥬',desc:'Freshly picked'},
+    {id:16,name:'Avocados ×3',price:2000,emoji:'🥑',desc:'Ripe hass avocados'},
+  ]},
+  { id:5, name:'Zanzibar Bites', category:'food', rating:4.7, distance:'2.1 km', emoji:'🫕', lat:-6.800, lng:39.209, products:[
+    {id:17,name:'Biryani Chicken',price:8000,emoji:'🍗',desc:'Full plate with raita'},
+    {id:18,name:'Samosa ×4',price:2000,emoji:'🥟',desc:'Crispy beef or veggie'},
+    {id:19,name:'Coconut Rice',price:4000,emoji:'🍚',desc:'Zanzibari coconut flavour'},
+  ]},
+  { id:6, name:'City Pharmacy',  category:'pharmacy', rating:4.4, distance:'3.0 km', emoji:'🏥', lat:-6.785, lng:39.215, products:[
+    {id:20,name:'Malaria Test Kit',price:5000,emoji:'🩺',desc:'RDT rapid test'},
+    {id:21,name:'ORS Sachets ×10',price:2000,emoji:'💧',desc:'Oral rehydration salts'},
+  ]},
+];
+
+// ── INIT ──
+window.addEventListener('DOMContentLoaded', () => {
+  allShops = DEMO_SHOPS;
+  renderShops(allShops);
+  initHeroMap();
+  initMainMap();
+  checkSession();
+});
+
+async function checkSession() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) {
+    currentUser = session.user;
+    document.getElementById('user-btn').textContent = '👤 ' + (session.user.email?.split('@')[0] || 'Me');
+  }
+  sb.auth.onAuthStateChange((_e, sess) => {
+    currentUser = sess?.user || null;
+    document.getElementById('user-btn').textContent = currentUser ? '👤 ' + currentUser.email.split('@')[0] : '👤 Sign In';
+  });
+}
+
+// ── MAPS ──
+function initHeroMap() {
+  heroMap = L.map('hero-map', { zoomControl:false, attributionControl:false }).setView([userLat, userLng], 13);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(heroMap);
+  addShopMarkers(heroMap);
+}
+
+function initMainMap() {
+  mainMap = L.map('main-map', { zoomControl:true }).setView([userLat, userLng], 14);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { attribution:'© CartoDB' }).addTo(mainMap);
+  addShopMarkers(mainMap);
+}
+
+function addShopMarkers(map) {
+  const userIcon = L.divIcon({ html:'<div style="background:#FF6B2C;width:14px;height:14px;border-radius:50%;border:3px solid #fff;box-shadow:0 0 8px #FF6B2C88"></div>', className:'', iconAnchor:[7,7] });
+  L.marker([userLat, userLng], { icon: userIcon }).addTo(map).bindPopup('📍 You are here');
+  allShops.forEach(s => {
+    const icon = L.divIcon({ html:`<div style="background:var(--surface,#222);border:2px solid #FF6B2C;border-radius:8px;padding:4px 6px;font-size:.75rem;font-weight:700;color:#fff;white-space:nowrap;box-shadow:0 2px 8px #0008">${s.emoji} ${s.name}</div>`, className:'', iconAnchor:[40,10] });
+    L.marker([s.lat, s.lng], { icon }).addTo(map).on('click', () => openShop(s));
+  });
+}
+
+function locateMe() {
+  if (!navigator.geolocation) return showToast('Geolocation not supported');
+  navigator.geolocation.getCurrentPosition(pos => {
+    userLat = pos.coords.latitude;
+    userLng = pos.coords.longitude;
+    document.getElementById('loc-text').textContent = 'Located ✓';
+    mainMap?.setView([userLat, userLng], 14);
+    heroMap?.setView([userLat, userLng], 13);
+    showToast('📍 Location found!');
+  }, () => showToast('Could not get location'));
+}
+
+// ── SHOP RENDERING ──
+function renderShops(shops) {
+  const grid = document.getElementById('shops-grid');
+  if (!shops.length) { grid.innerHTML = '<p style="color:var(--muted);padding:20px 0">No shops found.</p>'; return; }
+  grid.innerHTML = shops.map(s => `
+    <div class="shop-card" onclick="openShop(${JSON.stringify(s).replace(/"/g,'&quot;')})">
+      <div class="shop-img">${s.emoji}</div>
+      <div class="shop-body">
+        <div class="shop-name">${s.name}</div>
+        <div class="shop-meta">
+          <span class="rating">⭐ ${s.rating}</span>
+          <span class="distance">📍 ${s.distance}</span>
+        </div>
+        <span class="shop-tag ${s.category}">${catLabel(s.category)}</span>
+      </div>
+    </div>
+  `).join('');
+}
+
+function catLabel(c) { return {food:'🍔 Restaurant',grocery:'🥦 Grocery',supermarket:'🏪 Supermarket',pharmacy:'💊 Pharmacy'}[c]||c; }
+
+function filterCat(cat, el) {
+  document.querySelectorAll('.cat-pill').forEach(p=>p.classList.remove('active'));
+  el.classList.add('active');
+  renderShops(cat==='all' ? allShops : allShops.filter(s=>s.category===cat));
+  document.getElementById('shops-heading').textContent = cat==='all' ? 'Nearby shops' : catLabel(cat)+'s near you';
+}
+
+function filterShops(q) {
+  const filtered = allShops.filter(s => s.name.toLowerCase().includes(q.toLowerCase()) || s.category.includes(q.toLowerCase()));
+  renderShops(filtered);
+}
+
+// ── SHOP DETAIL ──
+function openShop(shop) {
+  document.getElementById('panel-shop-name').textContent = shop.name;
+  document.getElementById('panel-shop-tag').textContent = catLabel(shop.category);
+  document.getElementById('panel-shop-tag').className = 'shop-tag ' + shop.category;
+  document.getElementById('product-list').innerHTML = shop.products.map(p => `
+    <div class="product-item">
+      <div class="product-emoji">${p.emoji}</div>
+      <div class="product-info">
+        <div class="product-name">${p.name}</div>
+        <div class="product-desc">${p.desc}</div>
+        <div class="product-price">TZS ${p.price.toLocaleString()}</div>
+      </div>
+      <button class="add-btn" onclick="addToCart(${p.id},'${p.name}',${p.price},'${p.emoji}')">+</button>
+    </div>
+  `).join('');
+  document.getElementById('shop-panel').classList.add('open');
+}
+
+function closeShopPanel() { document.getElementById('shop-panel').classList.remove('open'); }
+
+// ── CART ──
+function addToCart(id, name, price, emoji) {
+  const ex = cart.find(i=>i.id===id);
+  if (ex) ex.qty++;
+  else cart.push({ id, name, price, emoji, qty:1 });
+  updateCartUI();
+  showToast(`${emoji} ${name} added!`);
+}
+
+function updateCartUI() {
+  const count = cart.reduce((s,i)=>s+i.qty, 0);
+  document.getElementById('cart-count').textContent = count;
+  const body = document.getElementById('cart-body');
+  if (!cart.length) {
+    body.innerHTML = '<div class="empty-cart"><div class="icon">🛒</div><p>Your cart is empty</p></div>';
+    document.getElementById('cart-total-price').textContent = 'TZS 0';
+    return;
+  }
+  body.innerHTML = cart.map(i=>`
+    <div class="cart-item">
+      <div style="font-size:1.4rem">${i.emoji}</div>
+      <div class="cart-item-info">
+        <div class="cart-item-name">${i.name}</div>
+        <div class="cart-item-price">TZS ${i.price.toLocaleString()} × ${i.qty}</div>
+      </div>
+      <div class="qty-ctrl">
+        <div class="qty-btn" onclick="changeQty(${i.id},-1)">−</div>
+        <span>${i.qty}</span>
+        <div class="qty-btn" onclick="changeQty(${i.id},1)">+</div>
+      </div>
+    </div>
+  `).join('');
+  const total = cart.reduce((s,i)=>s+i.price*i.qty, 0);
+  document.getElementById('cart-total-price').textContent = 'TZS ' + total.toLocaleString();
+}
+
+function changeQty(id, delta) {
+  const item = cart.find(i=>i.id===id);
+  if (!item) return;
+  item.qty += delta;
+  if (item.qty <= 0) cart = cart.filter(i=>i.id!==id);
+  updateCartUI();
+}
+
+function toggleCart() {
+  document.getElementById('cart-panel').classList.toggle('open');
+  updateCartUI();
+}
+
+async function checkout() {
+  if (!currentUser) { openModal('auth-modal'); return; }
+  if (!cart.length) { showToast('Your cart is empty'); return; }
+  const total = cart.reduce((s,i)=>s+i.price*i.qty, 0);
+  // Insert order into Supabase
+  const { error } = await sb.from('orders').insert({
+    user_id: currentUser.id,
+    items: cart,
+    total_amount: total,
+    status: 'pending',
+    delivery_lat: userLat,
+    delivery_lng: userLng,
+  });
+  if (error) { showToast('Error: ' + error.message); return; }
+  cart = [];
+  updateCartUI();
+  document.getElementById('cart-panel').classList.remove('open');
+  showToast('🎉 Order placed! You\'ll receive a confirmation shortly.');
+}
+
+// ── AUTH ──
+function switchTab(tab) {
+  document.getElementById('tab-login').classList.toggle('active', tab==='login');
+  document.getElementById('tab-signup').classList.toggle('active', tab==='signup');
+  document.getElementById('login-form').style.display = tab==='login' ? '' : 'none';
+  document.getElementById('signup-form').style.display = tab==='signup' ? '' : 'none';
+}
+
+async function doLogin() {
+  const email = document.getElementById('login-email').value;
+  const password = document.getElementById('login-password').value;
+  const { error } = await sb.auth.signInWithPassword({ email, password });
+  if (error) { showToast('❌ ' + error.message); return; }
+  closeModal('auth-modal');
+  showToast('✅ Welcome back!');
+}
+
+async function doSignup() {
+  const name = document.getElementById('signup-name').value;
+  const email = document.getElementById('signup-email').value;
+  const phone = document.getElementById('signup-phone').value;
+  const password = document.getElementById('signup-password').value;
+  const role = document.getElementById('signup-role').value;
+  const { error } = await sb.auth.signUp({ email, password, options: { data: { full_name: name, phone, role } } });
+  if (error) { showToast('❌ ' + error.message); return; }
+  if (role === 'vendor') { window.location.href = 'vendor.html'; }
+  closeModal('auth-modal');
+  showToast('🎉 Account created! Check your email.');
+}
+
+// ── HELPERS ──
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+function showToast(msg, duration=3000) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), duration);
+}
+</script>
+</body>
+</html>

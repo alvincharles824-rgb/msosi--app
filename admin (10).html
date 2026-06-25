@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Sokoni Admin — Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg:#0a0a0a; --surface:#141414; --surface2:#1e1e1e; --border:#262626;
+    --accent:#FF6B2C; --accent2:#FFB347; --text:#f5f5f5; --muted:#777;
+    --green:#22c55e; --red:#ef4444; --blue:#3b82f6; --yellow:#f59e0b;
+    --purple:#a78bfa; --radius:12px; --font:'Plus Jakarta Sans',sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--text);font-family:var(--font);display:flex;min-height:100vh;}
+
+  /* SIDEBAR */
+  .sidebar{width:230px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:20px 0;flex-shrink:0;position:fixed;top:0;left:0;bottom:0;}
+  .logo{font-family:'Instrument Serif',serif;font-size:1.5rem;color:var(--accent);font-style:italic;padding:0 20px 24px;border-bottom:1px solid var(--border);margin-bottom:16px;}
+  .logo span{display:block;font-family:var(--font);font-size:.72rem;font-style:normal;color:var(--muted);font-weight:600;letter-spacing:.08em;margin-top:2px;}
+  .nav-item{display:flex;align-items:center;gap:12px;padding:11px 20px;font-size:.9rem;font-weight:600;color:var(--muted);cursor:pointer;border-left:3px solid transparent;transition:all .2s;}
+  .nav-item:hover,.nav-item.active{color:var(--text);background:var(--surface2);border-left-color:var(--accent);}
+  .nav-item .icon{width:20px;text-align:center;}
+  .sidebar-footer{margin-top:auto;padding:16px 20px;border-top:1px solid var(--border);font-size:.82rem;color:var(--muted);}
+  .logout-btn{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:9px;color:var(--muted);font-family:var(--font);font-weight:600;cursor:pointer;margin-top:10px;}
+  .logout-btn:hover{border-color:var(--red);color:var(--red);}
+
+  /* MAIN */
+  .main{margin-left:230px;flex:1;display:flex;flex-direction:column;min-height:100vh;}
+  .topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:16px 28px;display:flex;align-items:center;justify-content:space-between;}
+  .topbar h1{font-size:1.2rem;font-weight:800;}
+  .topbar .meta{font-size:.82rem;color:var(--muted);}
+  .content{padding:28px;flex:1;}
+
+  /* STATS */
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:28px;}
+  .stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;}
+  .stat-label{font-size:.78rem;font-weight:700;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;margin-bottom:10px;}
+  .stat-val{font-size:2rem;font-weight:800;}
+  .stat-sub{font-size:.8rem;color:var(--muted);margin-top:4px;}
+  .stat-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:6px;}
+
+  /* TABLES */
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:24px;}
+  .card-header{padding:18px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+  .card-title{font-weight:800;font-size:1rem;}
+  table{width:100%;border-collapse:collapse;}
+  th{padding:12px 16px;text-align:left;font-size:.78rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--border);}
+  td{padding:13px 16px;font-size:.88rem;border-bottom:1px solid var(--border);}
+  tr:last-child td{border-bottom:none;}
+  tr:hover td{background:var(--surface2);}
+
+  /* BADGES */
+  .badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:999px;font-size:.75rem;font-weight:700;}
+  .badge-green{background:#16a34a22;color:var(--green);}
+  .badge-red{background:#dc262622;color:var(--red);}
+  .badge-yellow{background:#d9770622;color:var(--yellow);}
+  .badge-blue{background:#2563eb22;color:var(--blue);}
+  .badge-purple{background:#7c3aed22;color:var(--purple);}
+
+  /* ACTIONS */
+  .action-btn{background:none;border:1px solid var(--border);border-radius:6px;padding:5px 10px;color:var(--muted);font-family:var(--font);font-size:.78rem;cursor:pointer;transition:all .2s;}
+  .action-btn:hover{border-color:var(--accent);color:var(--accent);}
+  .action-btn.danger:hover{border-color:var(--red);color:var(--red);}
+
+  /* TABS */
+  .page-tabs{display:flex;gap:4px;background:var(--surface2);border-radius:10px;padding:4px;margin-bottom:24px;width:fit-content;}
+  .page-tab{padding:8px 18px;border-radius:8px;font-weight:600;font-size:.88rem;color:var(--muted);cursor:pointer;transition:all .2s;}
+  .page-tab.active{background:var(--accent);color:#fff;}
+
+  /* FILTERS */
+  .filter-row{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;}
+  .filter-select{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-family:var(--font);font-size:.85rem;outline:none;}
+  .filter-select:focus{border-color:var(--accent);}
+  .search-input{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 14px;color:var(--text);font-family:var(--font);font-size:.85rem;outline:none;min-width:220px;}
+  .search-input:focus{border-color:var(--accent);}
+
+  /* PAGE SECTIONS */
+  .page-section{display:none;}
+  .page-section.active{display:block;}
+
+  /* LOGIN */
+  .login-wrap{display:flex;align-items:center;justify-content:center;min-height:100vh;flex-direction:column;}
+  .login-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:40px;width:100%;max-width:380px;}
+  .login-card h2{font-size:1.5rem;margin-bottom:6px;}
+  .login-card p{color:var(--muted);font-size:.88rem;margin-bottom:24px;}
+  .form-group{margin-bottom:16px;}
+  .form-group label{display:block;font-size:.82rem;font-weight:600;color:var(--muted);margin-bottom:6px;}
+  .form-group input{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px;color:var(--text);font-family:var(--font);font-size:.9rem;outline:none;}
+  .form-group input:focus{border-color:var(--accent);}
+  .btn-primary{width:100%;background:var(--accent);border:none;border-radius:10px;padding:13px;color:#fff;font-family:var(--font);font-weight:800;font-size:.95rem;cursor:pointer;margin-top:4px;}
+  .btn-primary:hover{background:#e5571e;}
+
+  /* GRID STATS ROW */
+  .two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;}
+
+  /* TOAST */
+  .toast{position:fixed;bottom:24px;right:24px;background:var(--green);color:#fff;padding:12px 20px;border-radius:10px;font-weight:700;font-size:.88rem;z-index:9999;display:none;}
+  .toast.show{display:block;}
+
+  @media(max-width:900px){.stats{grid-template-columns:repeat(2,1fr);}.sidebar{width:60px;}.sidebar .nav-item span,.logo span,.sidebar-footer{display:none;}.main{margin-left:60px;}}
+</style>
+</head>
+<body>
+
+<!-- LOGIN PAGE -->
+<div class="login-wrap" id="login-page">
+  <div class="login-card">
+    <h2>Admin Login</h2>
+    <p>Sokoni platform administration</p>
+    <div class="form-group"><label>Admin Email</label><input type="email" id="adm-email" placeholder="admin@sokoni.co.tz"/></div>
+    <div class="form-group"><label>Password</label><input type="password" id="adm-pass" placeholder="••••••••"/></div>
+    <button class="btn-primary" onclick="adminLogin()">Access Dashboard →</button>
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<div id="dashboard" style="display:none;width:100%">
+
+<!-- SIDEBAR -->
+<nav class="sidebar">
+  <div class="logo">Sokoni <span>ADMIN PANEL</span></div>
+  <div class="nav-item active" onclick="showSection('overview',this)"><span class="icon">📊</span><span>Overview</span></div>
+  <div class="nav-item" onclick="showSection('orders',this)"><span class="icon">📦</span><span>Orders</span></div>
+  <div class="nav-item" onclick="showSection('shops',this)"><span class="icon">🏪</span><span>Shops</span></div>
+  <div class="nav-item" onclick="showSection('users',this)"><span class="icon">👥</span><span>Users</span></div>
+  <div class="nav-item" onclick="showSection('products',this)"><span class="icon">🛍️</span><span>Products</span></div>
+  <div class="nav-item" onclick="showSection('analytics',this)"><span class="icon">📈</span><span>Analytics</span></div>
+  <div class="sidebar-footer">
+    <div>Signed in as <strong>Admin</strong></div>
+    <button class="logout-btn" onclick="adminLogout()">Sign Out</button>
+  </div>
+</nav>
+
+<!-- MAIN -->
+<div class="main">
+  <div class="topbar">
+    <div><h1 id="page-title">Overview</h1><div class="meta" id="page-meta">Last updated just now</div></div>
+    <div style="display:flex;gap:10px;align-items:center;">
+      <span id="live-time" style="color:var(--muted);font-size:.82rem"></span>
+      <button class="action-btn" onclick="refreshData()">🔄 Refresh</button>
+    </div>
+  </div>
+  <div class="content">
+
+  <!-- OVERVIEW -->
+  <div class="page-section active" id="section-overview">
+    <div class="stats">
+      <div class="stat-card"><div class="stat-label">Total Orders</div><div class="stat-val" id="stat-orders">—</div><div class="stat-sub">All time</div></div>
+      <div class="stat-card"><div class="stat-label">Active Shops</div><div class="stat-val" id="stat-shops">—</div><div class="stat-sub">Verified vendors</div></div>
+      <div class="stat-card"><div class="stat-label">Registered Users</div><div class="stat-val" id="stat-users">—</div><div class="stat-sub">Customers + vendors</div></div>
+      <div class="stat-card"><div class="stat-label">Revenue (TZS)</div><div class="stat-val" id="stat-revenue">—</div><div class="stat-sub">Platform commissions</div></div>
+    </div>
+    <div class="two-col">
+      <div class="card">
+        <div class="card-header"><div class="card-title">Recent Orders</div></div>
+        <table><thead><tr><th>Order</th><th>Customer</th><th>Amount</th><th>Status</th></tr></thead>
+        <tbody id="overview-orders"></tbody></table>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title">Category Breakdown</div></div>
+        <div style="padding:20px;" id="cat-breakdown"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ORDERS -->
+  <div class="page-section" id="section-orders">
+    <div class="filter-row">
+      <input class="search-input" placeholder="Search order ID, customer…" oninput="filterTable('orders-table',this.value)"/>
+      <select class="filter-select" onchange="filterOrderStatus(this.value)">
+        <option value="">All statuses</option>
+        <option>pending</option><option>confirmed</option><option>preparing</option><option>on the way</option><option>delivered</option><option>cancelled</option>
+      </select>
+    </div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">All Orders</div><span id="orders-count" style="color:var(--muted);font-size:.85rem"></span></div>
+      <table><thead><tr><th>#ID</th><th>Customer</th><th>Shop</th><th>Items</th><th>Total</th><th>Status</th><th>Date</th><th>Actions</th></tr></thead>
+      <tbody id="orders-table"></tbody></table>
+    </div>
+  </div>
+
+  <!-- SHOPS -->
+  <div class="page-section" id="section-shops">
+    <div class="filter-row">
+      <input class="search-input" placeholder="Search shop name…" oninput="filterTable('shops-table',this.value)"/>
+      <select class="filter-select">
+        <option>All categories</option><option>food</option><option>grocery</option><option>supermarket</option><option>pharmacy</option>
+      </select>
+    </div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">All Shops / Vendors</div></div>
+      <table><thead><tr><th>Shop</th><th>Category</th><th>Owner</th><th>Status</th><th>Orders</th><th>Rating</th><th>Actions</th></tr></thead>
+      <tbody id="shops-table"></tbody></table>
+    </div>
+  </div>
+
+  <!-- USERS -->
+  <div class="page-section" id="section-users">
+    <div class="filter-row">
+      <input class="search-input" placeholder="Search by name or email…" oninput="filterTable('users-table',this.value)"/>
+      <select class="filter-select">
+        <option>All roles</option><option>customer</option><option>vendor</option><option>admin</option>
+      </select>
+    </div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">All Users</div></div>
+      <table><thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Role</th><th>Joined</th><th>Status</th><th>Actions</th></tr></thead>
+      <tbody id="users-table"></tbody></table>
+    </div>
+  </div>
+
+  <!-- PRODUCTS -->
+  <div class="page-section" id="section-products">
+    <div class="filter-row">
+      <input class="search-input" placeholder="Search products…" oninput="filterTable('products-table',this.value)"/>
+    </div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">All Products / Listings</div></div>
+      <table><thead><tr><th>Product</th><th>Shop</th><th>Category</th><th>Price (TZS)</th><th>Status</th><th>Actions</th></tr></thead>
+      <tbody id="products-table"></tbody></table>
+    </div>
+  </div>
+
+  <!-- ANALYTICS -->
+  <div class="page-section" id="section-analytics">
+    <div class="stats">
+      <div class="stat-card"><div class="stat-label">Today's Orders</div><div class="stat-val" style="color:var(--green)">—</div><div class="stat-sub">vs yesterday</div></div>
+      <div class="stat-card"><div class="stat-label">Avg Order Value</div><div class="stat-val">TZS —</div><div class="stat-sub">All categories</div></div>
+      <div class="stat-card"><div class="stat-label">Top Category</div><div class="stat-val" style="font-size:1.4rem">🍔 Food</div><div class="stat-sub">By order volume</div></div>
+      <div class="stat-card"><div class="stat-label">Delivery Rate</div><div class="stat-val" style="color:var(--green)">94%</div><div class="stat-sub">Success rate</div></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">Platform Activity Summary</div></div>
+      <div style="padding:24px;color:var(--muted);text-align:center">
+        <div style="font-size:2.5rem;margin-bottom:12px">📈</div>
+        <p>Connect to Supabase to view live analytics charts.</p>
+        <p style="margin-top:8px;font-size:.82rem">Integrate with Chart.js or Recharts for visual graphs.</p>
+      </div>
+    </div>
+  </div>
+
+  </div><!-- end content -->
+</div><!-- end main -->
+</div><!-- end dashboard -->
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPABASE_URL = 'https://ppzrofbkwzxbdahtcybu.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBwenJvZmJrd3p4YmRhaHRjeWJ1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjQzMDcsImV4cCI6MjA5NzkwMDMwN30.kH73nfcpnLIsoXohYuGGtmfnf57Y3QGI0J5ipIYIGHY';
+const ADMIN_EMAILS = ['admin@sokoni.co.tz']; // add admin emails here
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+// ── DEMO DATA ──
+const DEMO_ORDERS = [
+  {id:'ORD-001',customer:'Aisha Mohammed',shop:'Mama Africa Kitchen',items:2,total:9000,status:'delivered',date:'2025-06-20'},
+  {id:'ORD-002',customer:'John Msigwa',shop:'FreshMart Superstore',items:5,total:24700,status:'on the way',date:'2025-06-21'},
+  {id:'ORD-003',customer:'Fatuma Salim',shop:'Dawa Plus Pharmacy',items:1,total:1200,status:'pending',date:'2025-06-21'},
+  {id:'ORD-004',customer:'Carlos Mbeki',shop:'Green Leaf Groceries',items:4,total:5500,status:'confirmed',date:'2025-06-22'},
+  {id:'ORD-005',customer:'Raha Juma',shop:'Zanzibar Bites',items:3,total:14000,status:'preparing',date:'2025-06-22'},
+  {id:'ORD-006',customer:'Amani Osei',shop:'City Pharmacy',items:2,total:7000,status:'cancelled',date:'2025-06-23'},
+];
+const DEMO_SHOPS = [
+  {name:'Mama Africa Kitchen',category:'food',owner:'Mama Fatuma',status:'active',orders:148,rating:4.8},
+  {name:'FreshMart Superstore',category:'supermarket',owner:'David Kimani',status:'active',orders:97,rating:4.5},
+  {name:'Dawa Plus Pharmacy',category:'pharmacy',owner:'Dr. Abubakar',status:'active',orders:63,rating:4.9},
+  {name:'Green Leaf Groceries',category:'grocery',owner:'Agnes Mwangi',status:'active',orders:212,rating:4.6},
+  {name:'Zanzibar Bites',category:'food',owner:'Omar Hassan',status:'active',orders:88,rating:4.7},
+  {name:'City Pharmacy',category:'pharmacy',owner:'Pendo Mushi',status:'pending',orders:0,rating:0},
+];
+const DEMO_USERS = [
+  {name:'Aisha Mohammed',email:'aisha@email.com',phone:'+255 744 123 456',role:'customer',joined:'2025-05-10',status:'active'},
+  {name:'Mama Fatuma',email:'fatuma@mamaafrica.co.tz',phone:'+255 712 999 001',role:'vendor',joined:'2025-04-01',status:'active'},
+  {name:'John Msigwa',email:'john@email.com',phone:'+255 754 000 111',role:'customer',joined:'2025-06-15',status:'active'},
+  {name:'Dr. Abubakar',email:'abubakar@dawa.com',phone:'+255 765 888 222',role:'vendor',joined:'2025-03-20',status:'active'},
+  {name:'Carlos Mbeki',email:'carlos@email.com',phone:'+255 784 333 444',role:'customer',joined:'2025-06-18',status:'active'},
+];
+const DEMO_PRODUCTS = [
+  {name:'Ugali & Nyama',shop:'Mama Africa Kitchen',category:'food',price:5500,status:'available'},
+  {name:'Pilau (Full)',shop:'Mama Africa Kitchen',category:'food',price:6000,status:'available'},
+  {name:'Unga Sembe 2kg',shop:'FreshMart Superstore',category:'supermarket',price:4200,status:'available'},
+  {name:'Panadol Advance',shop:'Dawa Plus Pharmacy',category:'pharmacy',price:1200,status:'available'},
+  {name:'Tomatoes 1kg',shop:'Green Leaf Groceries',category:'grocery',price:1500,status:'available'},
+  {name:'Biryani Chicken',shop:'Zanzibar Bites',category:'food',price:8000,status:'out of stock'},
+];
+
+// ── AUTH ──
+window.addEventListener('DOMContentLoaded', async () => {
+  const { data: { session } } = await sb.auth.getSession();
+  if (session && ADMIN_EMAILS.includes(session.user.email)) {
+    showDashboard();
+  }
+  // For demo: allow local login bypass
+  startClock();
+});
+
+async function adminLogin() {
+  const email = document.getElementById('adm-email').value;
+  const pass = document.getElementById('adm-pass').value;
+  // Demo bypass
+  if (email === 'admin@sokoni.co.tz' && pass === 'admin123') {
+    showDashboard(); return;
+  }
+  const { error } = await sb.auth.signInWithPassword({ email, password: pass });
+  if (error) { showToast('❌ ' + error.message); return; }
+  if (!ADMIN_EMAILS.includes(email)) {
+    await sb.auth.signOut();
+    showToast('❌ Not an admin account');
+    return;
+  }
+  showDashboard();
+}
+
+function adminLogout() {
+  sb.auth.signOut();
+  document.getElementById('dashboard').style.display = 'none';
+  document.getElementById('login-page').style.display = 'flex';
+}
+
+function showDashboard() {
+  document.getElementById('login-page').style.display = 'none';
+  document.getElementById('dashboard').style.display = 'flex';
+  loadAllData();
+}
+
+// ── LOAD DATA ──
+function loadAllData() {
+  // Stats
+  document.getElementById('stat-orders').textContent = DEMO_ORDERS.length;
+  document.getElementById('stat-shops').textContent = DEMO_SHOPS.filter(s=>s.status==='active').length;
+  document.getElementById('stat-users').textContent = DEMO_USERS.length;
+  const rev = DEMO_ORDERS.filter(o=>o.status==='delivered').reduce((s,o)=>s+o.total*0.10,0);
+  document.getElementById('stat-revenue').textContent = 'TZS '+Math.round(rev).toLocaleString();
+
+  renderOverviewOrders();
+  renderCatBreakdown();
+  renderOrdersTable();
+  renderShopsTable();
+  renderUsersTable();
+  renderProductsTable();
+  document.getElementById('orders-count').textContent = DEMO_ORDERS.length + ' orders total';
+}
+
+// ── OVERVIEW ──
+function renderOverviewOrders() {
+  document.getElementById('overview-orders').innerHTML = DEMO_ORDERS.slice(0,5).map(o=>`
+    <tr><td><strong>${o.id}</strong></td><td>${o.customer}</td><td>TZS ${o.total.toLocaleString()}</td><td>${badge(o.status)}</td></tr>
+  `).join('');
+}
+
+function renderCatBreakdown() {
+  const cats = ['food','grocery','supermarket','pharmacy'];
+  const colors = {'food':'var(--yellow)','grocery':'var(--green)','supermarket':'var(--purple)','pharmacy':'var(--blue)'};
+  document.getElementById('cat-breakdown').innerHTML = cats.map(c=>{
+    const count = DEMO_SHOPS.filter(s=>s.category===c).length;
+    const pct = Math.round(count/DEMO_SHOPS.length*100);
+    return `<div style="margin-bottom:14px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:5px;font-size:.85rem">
+        <span style="font-weight:600;text-transform:capitalize">${c}</span>
+        <span style="color:var(--muted)">${count} shops (${pct}%)</span>
+      </div>
+      <div style="background:var(--surface2);border-radius:999px;height:6px">
+        <div style="background:${colors[c]};width:${pct}%;height:100%;border-radius:999px"></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── ORDERS TABLE ──
+function renderOrdersTable(data) {
+  const rows = (data || DEMO_ORDERS);
+  document.getElementById('orders-table').innerHTML = rows.map(o=>`
+    <tr>
+      <td><strong>${o.id}</strong></td>
+      <td>${o.customer}</td>
+      <td>${o.shop}</td>
+      <td>${o.items} item${o.items>1?'s':''}</td>
+      <td>TZS ${o.total.toLocaleString()}</td>
+      <td>${badge(o.status)}</td>
+      <td>${o.date}</td>
+      <td><button class="action-btn" onclick="updateOrderStatus('${o.id}')">Update</button> <button class="action-btn danger">Cancel</button></td>
+    </tr>
+  `).join('');
+}
+
+function filterOrderStatus(val) {
+  renderOrdersTable(val ? DEMO_ORDERS.filter(o=>o.status===val) : DEMO_ORDERS);
+}
+
+// ── SHOPS TABLE ──
+function renderShopsTable() {
+  document.getElementById('shops-table').innerHTML = DEMO_SHOPS.map(s=>`
+    <tr>
+      <td><strong>${s.name}</strong></td>
+      <td><span class="badge badge-${catColor(s.category)}">${s.category}</span></td>
+      <td>${s.owner}</td>
+      <td>${s.status==='active'?'<span class="badge badge-green">Active</span>':'<span class="badge badge-yellow">Pending</span>'}</td>
+      <td>${s.orders}</td>
+      <td>${s.rating>0?'⭐ '+s.rating:'—'}</td>
+      <td>
+        <button class="action-btn">Edit</button>
+        <button class="action-btn" onclick="toggleShopStatus(this)">Suspend</button>
+        <button class="action-btn danger">Remove</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+// ── USERS TABLE ──
+function renderUsersTable() {
+  document.getElementById('users-table').innerHTML = DEMO_USERS.map(u=>`
+    <tr>
+      <td><strong>${u.name}</strong></td>
+      <td>${u.email}</td>
+      <td>${u.phone}</td>
+      <td><span class="badge ${u.role==='vendor'?'badge-purple':u.role==='admin'?'badge-red':'badge-blue'}">${u.role}</span></td>
+      <td>${u.joined}</td>
+      <td><span class="badge badge-green">Active</span></td>
+      <td><button class="action-btn">View</button> <button class="action-btn danger">Suspend</button></td>
+    </tr>
+  `).join('');
+}
+
+// ── PRODUCTS TABLE ──
+function renderProductsTable() {
+  document.getElementById('products-table').innerHTML = DEMO_PRODUCTS.map(p=>`
+    <tr>
+      <td><strong>${p.name}</strong></td>
+      <td>${p.shop}</td>
+      <td><span class="badge badge-${catColor(p.category)}">${p.category}</span></td>
+      <td>${p.price.toLocaleString()}</td>
+      <td>${p.status==='available'?'<span class="badge badge-green">Available</span>':'<span class="badge badge-red">Out of stock</span>'}</td>
+      <td><button class="action-btn">Edit</button> <button class="action-btn danger">Remove</button></td>
+    </tr>
+  `).join('');
+}
+
+// ── HELPERS ──
+function badge(status) {
+  const map = {pending:'badge-yellow',confirmed:'badge-blue',preparing:'badge-blue','on the way':'badge-purple',delivered:'badge-green',cancelled:'badge-red'};
+  return `<span class="badge ${map[status]||'badge-blue'}">${status}</span>`;
+}
+function catColor(c) { return {food:'yellow',grocery:'green',supermarket:'purple',pharmacy:'blue'}[c]||'blue'; }
+
+function filterTable(id, val) {
+  const rows = document.getElementById(id)?.querySelectorAll('tr');
+  rows?.forEach(r => {
+    r.style.display = r.textContent.toLowerCase().includes(val.toLowerCase()) ? '' : 'none';
+  });
+}
+
+function showSection(name, el) {
+  document.querySelectorAll('.page-section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('section-'+name).classList.add('active');
+  el.classList.add('active');
+  document.getElementById('page-title').textContent = el.querySelector('span:last-child')?.textContent||name;
+}
+
+function startClock() {
+  setInterval(()=>{
+    document.getElementById('live-time').textContent = new Date().toLocaleTimeString('en-TZ',{hour:'2-digit',minute:'2-digit'});
+  },1000);
+}
+
+function refreshData() { loadAllData(); showToast('✅ Data refreshed'); }
+
+function updateOrderStatus(id) { showToast('Order '+id+' status updated'); }
+function toggleShopStatus(btn) { btn.textContent = btn.textContent==='Suspend'?'Activate':'Suspend'; showToast('Shop status updated'); }
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 3000);
+}
+</script>
+</body>
+</html>
