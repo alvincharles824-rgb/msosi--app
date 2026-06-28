@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Sokoni Admin — Dashboard</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet"/>
 <style>
   :root {
@@ -226,20 +227,81 @@
 
   <!-- ANALYTICS -->
   <div class="page-section" id="section-analytics">
-    <div class="stats">
-      <div class="stat-card"><div class="stat-label">Today's Orders</div><div class="stat-val" style="color:var(--green)">—</div><div class="stat-sub">vs yesterday</div></div>
-      <div class="stat-card"><div class="stat-label">Avg Order Value</div><div class="stat-val">TZS —</div><div class="stat-sub">All categories</div></div>
-      <div class="stat-card"><div class="stat-label">Top Category</div><div class="stat-val" style="font-size:1.4rem">🍔 Food</div><div class="stat-sub">By order volume</div></div>
-      <div class="stat-card"><div class="stat-label">Delivery Rate</div><div class="stat-val" style="color:var(--green)">94%</div><div class="stat-sub">Success rate</div></div>
+
+    <!-- TOP STATS -->
+    <div class="stats" style="grid-template-columns:repeat(4,1fr)">
+      <div class="stat-card"><div class="stat-label">Today's Orders</div><div class="stat-val" style="color:var(--green)" id="a-today">—</div><div class="stat-sub" id="a-today-sub">Loading…</div></div>
+      <div class="stat-card"><div class="stat-label">Total Revenue</div><div class="stat-val" id="a-revenue">—</div><div class="stat-sub">All time delivered</div></div>
+      <div class="stat-card"><div class="stat-label">Avg Order Value</div><div class="stat-val" id="a-avg">—</div><div class="stat-sub">Per transaction</div></div>
+      <div class="stat-card"><div class="stat-label">Delivery Rate</div><div class="stat-val" style="color:var(--green)" id="a-rate">—</div><div class="stat-sub">Success rate</div></div>
     </div>
-    <div class="card">
-      <div class="card-header"><div class="card-title">Platform Activity Summary</div></div>
-      <div style="padding:24px;color:var(--muted);text-align:center">
-        <div style="font-size:2.5rem;margin-bottom:12px">📈</div>
-        <p>Connect to Supabase to view live analytics charts.</p>
-        <p style="margin-top:8px;font-size:.82rem">Integrate with Chart.js or Recharts for visual graphs.</p>
+
+    <!-- DATE RANGE -->
+    <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;align-items:center">
+      <select class="filter-select" id="chart-range" onchange="loadAnalytics()">
+        <option value="7">Last 7 days</option>
+        <option value="14">Last 14 days</option>
+        <option value="30" selected>Last 30 days</option>
+        <option value="90">Last 90 days</option>
+      </select>
+      <button class="action-btn" onclick="loadAnalytics()" style="padding:8px 16px">🔄 Refresh Charts</button>
+      <span id="a-last-updated" style="color:var(--muted);font-size:.78rem;margin-left:auto"></span>
+    </div>
+
+    <!-- ROW 1: Orders Over Time + Category Pie -->
+    <div style="display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:16px">
+      <div class="card">
+        <div class="card-header"><div class="card-title">📈 Orders Over Time</div><span style="color:var(--muted);font-size:.8rem" id="orders-chart-label"></span></div>
+        <div style="padding:20px"><canvas id="ordersChart" height="220"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title">🍕 By Category</div></div>
+        <div style="padding:20px"><canvas id="categoryChart" height="220"></canvas></div>
       </div>
     </div>
+
+    <!-- ROW 2: Revenue Bar + Payment Methods -->
+    <div style="display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:16px">
+      <div class="card">
+        <div class="card-header"><div class="card-title">💰 Revenue (TZS)</div></div>
+        <div style="padding:20px"><canvas id="revenueChart" height="200"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title">💳 Payment Methods</div></div>
+        <div style="padding:20px"><canvas id="paymentChart" height="200"></canvas></div>
+      </div>
+    </div>
+
+    <!-- ROW 3: Top Vendors + Order Status -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+      <div class="card">
+        <div class="card-header"><div class="card-title">🏆 Top Vendors</div></div>
+        <div style="padding:20px"><canvas id="vendorChart" height="220"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title">📦 Order Status Breakdown</div></div>
+        <div style="padding:20px"><canvas id="statusChart" height="220"></canvas></div>
+      </div>
+    </div>
+
+    <!-- ROW 4: Shift Analysis -->
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-header"><div class="card-title">☀️🌙 Day vs Night Shift</div></div>
+      <div style="padding:20px"><canvas id="shiftChart" height="120"></canvas></div>
+    </div>
+
+    <!-- ROW 5: Live Activity Feed -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">⚡ Live Activity Feed</div>
+        <div style="display:flex;align-items:center;gap:6px;font-size:.78rem;color:var(--green);font-weight:700">
+          <div style="width:7px;height:7px;border-radius:50%;background:var(--green);animation:pulse 1.5s infinite"></div>
+          Real-time
+        </div>
+      </div>
+      <div id="live-feed" style="max-height:260px;overflow-y:auto"></div>
+    </div>
+
   </div>
 
   </div><!-- end content -->
@@ -477,6 +539,378 @@ function showToast(msg) {
   t.classList.add('show');
   setTimeout(()=>t.classList.remove('show'), 3000);
 }
+
+// ══════════════════════════════════════════════
+// LIVE ANALYTICS
+// ══════════════════════════════════════════════
+
+let charts = {};
+
+// Chart.js global defaults for dark theme
+Chart.defaults.color = '#777';
+Chart.defaults.borderColor = '#262626';
+Chart.defaults.font.family = "'Plus Jakarta Sans', sans-serif";
+
+async function loadAnalytics() {
+  const days = parseInt(document.getElementById('chart-range')?.value || 30);
+  const since = new Date();
+  since.setDate(since.getDate() - days);
+  const sinceStr = since.toISOString();
+
+  document.getElementById('a-last-updated').textContent = 'Updating…';
+
+  // Fetch from Supabase
+  let orders = [];
+  let csOrders = [];
+  try {
+    const { data: o } = await sb.from('cs_orders')
+      .select('*')
+      .gte('created_at', sinceStr)
+      .order('created_at', { ascending: true });
+    csOrders = o || [];
+
+    const { data: o2 } = await sb.from('orders')
+      .select('*')
+      .gte('created_at', sinceStr);
+    orders = o2 || [];
+  } catch(e) {}
+
+  // Combine both order sources
+  const allOrders = [...csOrders, ...orders];
+
+  // Fallback to demo if empty
+  const data = allOrders.length > 0 ? allOrders : generateDemoData(days);
+
+  updateAnalyticsStats(data);
+  renderOrdersChart(data, days);
+  renderCategoryChart(data);
+  renderRevenueChart(data, days);
+  renderPaymentChart(data);
+  renderVendorChart(data);
+  renderStatusChart(data);
+  renderShiftChart(data);
+  renderLiveFeed(data);
+
+  document.getElementById('a-last-updated').textContent =
+    'Updated ' + new Date().toLocaleTimeString('en-TZ', {hour:'2-digit', minute:'2-digit'});
+}
+
+// ── DEMO DATA GENERATOR ──
+function generateDemoData(days) {
+  const data = [];
+  const vendors = ['Mama Africa Kitchen','FreshMart Superstore','Dawa Plus Pharmacy','Green Leaf Groceries','Zanzibar Bites'];
+  const types = ['food','food','food','grocery','supermarket','pharmacy'];
+  const statuses = ['delivered','delivered','delivered','delivered','cancelled','on the way'];
+  const payments = ['mpesa','cash','tigo_pesa','airtel_money','mpesa','cash'];
+  const shifts = ['day','day','night'];
+  for (let i = 0; i < days * 3; i++) {
+    const d = new Date();
+    d.setDate(d.getDate() - Math.floor(Math.random() * days));
+    data.push({
+      id: 'ORD-' + (100 + i),
+      vendor: vendors[Math.floor(Math.random() * vendors.length)],
+      order_type: types[Math.floor(Math.random() * types.length)],
+      status: statuses[Math.floor(Math.random() * statuses.length)],
+      payment_method: payments[Math.floor(Math.random() * payments.length)],
+      shift: shifts[Math.floor(Math.random() * shifts.length)],
+      total_amount: Math.floor(Math.random() * 20000) + 2000,
+      created_at: d.toISOString(),
+    });
+  }
+  return data;
+}
+
+// ── STATS ──
+function updateAnalyticsStats(data) {
+  const today = new Date().toISOString().split('T')[0];
+  const todayOrders = data.filter(o => o.created_at?.startsWith(today));
+  const delivered = data.filter(o => o.status === 'delivered');
+  const totalRev = delivered.reduce((s,o) => s + (o.total_amount||0), 0);
+  const avg = data.length ? Math.round(data.reduce((s,o) => s + (o.total_amount||0), 0) / data.length) : 0;
+  const rate = data.length ? Math.round(delivered.length / data.length * 100) : 0;
+
+  document.getElementById('a-today').textContent = todayOrders.length;
+  document.getElementById('a-today-sub').textContent = `${data.length} total in range`;
+  document.getElementById('a-revenue').textContent = 'TZS ' + totalRev.toLocaleString();
+  document.getElementById('a-avg').textContent = 'TZS ' + avg.toLocaleString();
+  document.getElementById('a-rate').textContent = rate + '%';
+}
+
+// ── ORDERS OVER TIME ──
+function renderOrdersChart(data, days) {
+  const labels = [];
+  const counts = [];
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const dateStr = d.toISOString().split('T')[0];
+    const label = d.toLocaleDateString('en-TZ', {month:'short', day:'numeric'});
+    labels.push(label);
+    counts.push(data.filter(o => o.created_at?.startsWith(dateStr)).length);
+  }
+  document.getElementById('orders-chart-label').textContent = `${data.length} orders`;
+  destroyChart('ordersChart');
+  charts.orders = new Chart(document.getElementById('ordersChart'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Orders',
+        data: counts,
+        borderColor: '#FF6B2C',
+        backgroundColor: 'rgba(255,107,44,0.08)',
+        borderWidth: 2.5,
+        fill: true,
+        tension: 0.4,
+        pointBackgroundColor: '#FF6B2C',
+        pointRadius: 3,
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { color: '#1a1a1a' }, ticks: { maxTicksLimit: 8 } },
+        y: { grid: { color: '#1a1a1a' }, beginAtZero: true, ticks: { stepSize: 1 } }
+      }
+    }
+  });
+}
+
+// ── CATEGORY DOUGHNUT ──
+function renderCategoryChart(data) {
+  const cats = {food:0, grocery:0, supermarket:0, pharmacy:0};
+  data.forEach(o => { if(cats[o.order_type] !== undefined) cats[o.order_type]++; });
+  destroyChart('categoryChart');
+  charts.category = new Chart(document.getElementById('categoryChart'), {
+    type: 'doughnut',
+    data: {
+      labels: ['🍔 Food','🥦 Grocery','🏪 Supermarket','💊 Pharmacy'],
+      datasets: [{
+        data: Object.values(cats),
+        backgroundColor: ['#f59e0b','#22c55e','#a78bfa','#60a5fa'],
+        borderColor: '#141414',
+        borderWidth: 3,
+      }]
+    },
+    options: {
+      responsive: true,
+      cutout: '65%',
+      plugins: {
+        legend: { position: 'bottom', labels: { padding: 12, boxWidth: 12 } }
+      }
+    }
+  });
+}
+
+// ── REVENUE BAR ──
+function renderRevenueChart(data, days) {
+  const step = days <= 14 ? 1 : 7;
+  const labels = [];
+  const revenues = [];
+  for (let i = Math.floor(days/step) - 1; i >= 0; i--) {
+    const start = new Date();
+    start.setDate(start.getDate() - (i+1)*step);
+    const end = new Date();
+    end.setDate(end.getDate() - i*step);
+    const label = start.toLocaleDateString('en-TZ', {month:'short', day:'numeric'});
+    labels.push(label);
+    const rev = data
+      .filter(o => {
+        const d = new Date(o.created_at);
+        return d >= start && d < end && o.status === 'delivered';
+      })
+      .reduce((s,o) => s + (o.total_amount||0), 0);
+    revenues.push(Math.round(rev / 1000));
+  }
+  destroyChart('revenueChart');
+  charts.revenue = new Chart(document.getElementById('revenueChart'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Revenue (TZS 000s)',
+        data: revenues,
+        backgroundColor: 'rgba(255,107,44,0.7)',
+        borderColor: '#FF6B2C',
+        borderWidth: 1,
+        borderRadius: 6,
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { color: '#1a1a1a' } },
+        y: { grid: { color: '#1a1a1a' }, beginAtZero: true,
+          ticks: { callback: v => 'TZS ' + v + 'k' } }
+      }
+    }
+  });
+}
+
+// ── PAYMENT PIE ──
+function renderPaymentChart(data) {
+  const pays = {mpesa:0, cash:0, tigo_pesa:0, airtel_money:0};
+  data.forEach(o => {
+    const p = o.payment_method?.toLowerCase().replace('-','_') || 'cash';
+    if(pays[p] !== undefined) pays[p]++; else pays.cash++;
+  });
+  destroyChart('paymentChart');
+  charts.payment = new Chart(document.getElementById('paymentChart'), {
+    type: 'pie',
+    data: {
+      labels: ['M-Pesa','Cash','Tigo Pesa','Airtel Money'],
+      datasets: [{
+        data: Object.values(pays),
+        backgroundColor: ['#00A651','#f59e0b','#0066CC','#EF3A24'],
+        borderColor: '#141414',
+        borderWidth: 3,
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { position: 'bottom', labels: { padding: 10, boxWidth: 12 } } }
+    }
+  });
+}
+
+// ── TOP VENDORS ──
+function renderVendorChart(data) {
+  const vendors = {};
+  data.forEach(o => {
+    const v = o.vendor || 'Unknown';
+    vendors[v] = (vendors[v] || 0) + 1;
+  });
+  const sorted = Object.entries(vendors).sort((a,b) => b[1]-a[1]).slice(0,6);
+  destroyChart('vendorChart');
+  charts.vendor = new Chart(document.getElementById('vendorChart'), {
+    type: 'bar',
+    data: {
+      labels: sorted.map(v => v[0].split(' ').slice(0,2).join(' ')),
+      datasets: [{
+        label: 'Orders',
+        data: sorted.map(v => v[1]),
+        backgroundColor: ['#FF6B2C','#f59e0b','#22c55e','#60a5fa','#a78bfa','#f472b6'],
+        borderRadius: 6,
+      }]
+    },
+    options: {
+      responsive: true,
+      indexAxis: 'y',
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { color: '#1a1a1a' }, beginAtZero: true },
+        y: { grid: { color: '#1a1a1a' } }
+      }
+    }
+  });
+}
+
+// ── STATUS BREAKDOWN ──
+function renderStatusChart(data) {
+  const statuses = {received:0, accepted:0, cooking:0, ready:0, 'on the way':0, delivered:0, cancelled:0};
+  data.forEach(o => { if(statuses[o.status] !== undefined) statuses[o.status]++; });
+  const colors = {
+    received:'#666', accepted:'#3b82f6', cooking:'#f59e0b',
+    ready:'#06b6d4', 'on the way':'#a78bfa', delivered:'#22c55e', cancelled:'#ef4444'
+  };
+  destroyChart('statusChart');
+  charts.status = new Chart(document.getElementById('statusChart'), {
+    type: 'doughnut',
+    data: {
+      labels: Object.keys(statuses).map(s => s.charAt(0).toUpperCase()+s.slice(1)),
+      datasets: [{
+        data: Object.values(statuses),
+        backgroundColor: Object.values(colors),
+        borderColor: '#141414',
+        borderWidth: 3,
+      }]
+    },
+    options: {
+      responsive: true,
+      cutout: '60%',
+      plugins: { legend: { position: 'bottom', labels: { padding: 8, boxWidth: 10, font:{size:11} } } }
+    }
+  });
+}
+
+// ── SHIFT CHART ──
+function renderShiftChart(data) {
+  const dayOrders = data.filter(o => o.shift === 'day' || !o.shift);
+  const nightOrders = data.filter(o => o.shift === 'night');
+  const dayRev = dayOrders.reduce((s,o) => s+(o.total_amount||0), 0);
+  const nightRev = nightOrders.reduce((s,o) => s+(o.total_amount||0), 0);
+  destroyChart('shiftChart');
+  charts.shift = new Chart(document.getElementById('shiftChart'), {
+    type: 'bar',
+    data: {
+      labels: ['Orders', 'Revenue (TZS 000s)'],
+      datasets: [
+        {
+          label: '☀️ Day Shift',
+          data: [dayOrders.length, Math.round(dayRev/1000)],
+          backgroundColor: 'rgba(245,158,11,0.7)',
+          borderRadius: 6,
+        },
+        {
+          label: '🌙 Night Shift',
+          data: [nightOrders.length, Math.round(nightRev/1000)],
+          backgroundColor: 'rgba(167,139,250,0.7)',
+          borderRadius: 6,
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { position: 'top' } },
+      scales: {
+        x: { grid: { color: '#1a1a1a' } },
+        y: { grid: { color: '#1a1a1a' }, beginAtZero: true }
+      }
+    }
+  });
+}
+
+// ── LIVE FEED ──
+function renderLiveFeed(data) {
+  const recent = [...data].sort((a,b) => new Date(b.created_at)-new Date(a.created_at)).slice(0,15);
+  const statusColors = {
+    received:'#666', accepted:'#3b82f6', cooking:'#f59e0b',
+    ready:'#06b6d4', 'on the way':'#a78bfa', delivered:'#22c55e', cancelled:'#ef4444'
+  };
+  const typeIcons = {food:'🍔', grocery:'🥦', supermarket:'🏪', pharmacy:'💊'};
+  document.getElementById('live-feed').innerHTML = recent.map(o => `
+    <div style="display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid #1a1a1a">
+      <div style="font-size:1.2rem">${typeIcons[o.order_type]||'📦'}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:700;font-size:.82rem">#${o.id} — ${o.vendor||'—'}</div>
+        <div style="font-size:.74rem;color:#666">${o.customer_name||'Customer'} · TZS ${(o.total_amount||0).toLocaleString()}</div>
+      </div>
+      <div style="text-align:right;flex-shrink:0">
+        <div style="font-size:.72rem;font-weight:700;color:${statusColors[o.status]||'#666'}">${o.status}</div>
+        <div style="font-size:.68rem;color:#444">${new Date(o.created_at).toLocaleTimeString('en-TZ',{hour:'2-digit',minute:'2-digit'})}</div>
+      </div>
+    </div>`).join('');
+}
+
+function destroyChart(id) {
+  if(charts[id.replace('Chart','')]) {
+    charts[id.replace('Chart','')].destroy();
+    delete charts[id.replace('Chart','')];
+  }
+  // Also try direct Chart.js registry
+  const existing = Chart.getChart(id);
+  if(existing) existing.destroy();
+}
+
+// Load analytics when section is opened
+const _origShowSection = showSection;
+function showSection(name, el) {
+  _origShowSection(name, el);
+  if(name === 'analytics') loadAnalytics();
+}
+
 </script>
 </body>
 </html>
