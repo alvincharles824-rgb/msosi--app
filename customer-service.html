@@ -181,6 +181,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);min-height:1
     <input type="date" class="date-fi" id="exp-date"/>
     <button class="btn btn-ghost" onclick="exportCSV()">📥 Export CSV</button>
     <button class="btn btn-ghost" onclick="window.print()">🖨️ Print</button>
+    <button class="btn btn-ghost" onclick="triggerDailyReport()" style="background:#16a34a22;border-color:#22c55e;color:#22c55e">📊 Send to Google Sheets</button>
   </div>
 
   <!-- TABS -->
@@ -678,11 +679,25 @@ async function submitOrder(){
   if(!num||!customer||!vendor){showToast('❌ Fill order #, customer, vendor');return;}
   const newOrder={id:num,customer_name:customer,customer_phone:phone,vendor,driver_name:driver,order_type:type,shift,total_amount:amount,payment_method:payment,delivery_address:address,notes,status,cancel_reason:null,created_at:new Date().toISOString()};
   try{await sb.from('cs_orders').insert(newOrder);}catch{}
+  sendToSheet('new_order',{order:newOrder});
   allOrders.unshift(newOrder);
   closeModal('new-order-modal');
   applyFilters();
   showToast('✅ Order #'+num+' recorded!');
   ['no-num','no-customer','no-phone','no-driver','no-amount','no-address','no-notes'].forEach(i=>document.getElementById(i).value='');
+}
+
+// ── GOOGLE SHEETS WEBHOOK ──
+const https://script.google.com/macros/s/AKfycbzep9TaadQVSC9F4dD-tulz3isYPVAcvdLKyCiGvLDmRR3GKD1cI3WsPlQiYJZgRv36/exec='YOUR_APPS_SCRIPT_WEB_APP_URL';
+async function sendToSheet(action,payload){
+  if(!https://script.google.com/macros/s/AKfycbzep9TaadQVSC9F4dD-tulz3isYPVAcvdLKyCiGvLDmRR3GKD1cI3WsPlQiYJZgRv36/exec||https://script.google.com/macros/s/AKfycbzep9TaadQVSC9F4dD-tulz3isYPVAcvdLKyCiGvLDmRR3GKD1cI3WsPlQiYJZgRv36/exec.includes('YOUR_'))return;
+  try{await fetch(https://script.google.com/macros/s/AKfycbzep9TaadQVSC9F4dD-tulz3isYPVAcvdLKyCiGvLDmRR3GKD1cI3WsPlQiYJZgRv36/exec,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,...payload}),mode:'no-cors'});}catch(e){}
+}
+async function triggerDailyReport(){
+  const date=document.getElementById('exp-date').value||new Date().toISOString().split('T')[0];
+  if(!https://script.google.com/macros/s/AKfycbzep9TaadQVSC9F4dD-tulz3isYPVAcvdLKyCiGvLDmRR3GKD1cI3WsPlQiYJZgRv36/exec||https://script.google.com/macros/s/AKfycbzep9TaadQVSC9F4dD-tulz3isYPVAcvdLKyCiGvLDmRR3GKD1cI3WsPlQiYJZgRv36/exec.includes('YOUR_')){showToast('⚠️ Add Apps Script URL first');return;}
+  await sendToSheet('daily_report',{date});
+  showToast('📊 Report sent to Google Sheets!');
 }
 
 // ── EXPORT ──
