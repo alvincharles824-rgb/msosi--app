@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Sokoni — Customer Service</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="sms.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet"/>
+<style>
+:root{--bg:#0a0a0a;--surface:#141414;--surface2:#1e1e1e;--border:#262626;--accent:#FF6B2C;--text:#f5f5f5;--muted:#666;--green:#22c55e;--red:#ef4444;--blue:#3b82f6;--yellow:#f59e0b;--purple:#a78bfa;--cyan:#06b6d4;--orange:#f97316;--font:'Plus Jakarta Sans',sans-serif;--radius:10px;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:var(--font);min-height:100vh;overflow-x:auto;}
+
+/* TOPBAR */
+.topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:0 20px;height:54px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;min-width:fit-content;}
+.logo{font-family:'Instrument Serif',serif;font-size:1.2rem;color:var(--accent);font-style:italic;white-space:nowrap;}
+.logo small{font-family:var(--font);font-size:.65rem;font-style:normal;color:var(--muted);font-weight:700;letter-spacing:.08em;margin-left:8px;}
+.topbar-right{display:flex;align-items:center;gap:10px;flex-shrink:0;}
+.shift-badge{display:flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:5px 12px;font-size:.78rem;font-weight:700;white-space:nowrap;}
+.sdot{width:7px;height:7px;border-radius:50%;background:var(--yellow);}
+.sdot.night{background:var(--purple);}
+.live-dot{width:7px;height:7px;border-radius:50%;background:var(--green);animation:pulse 1.5s infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:7px;font-family:var(--font);font-weight:700;font-size:.78rem;cursor:pointer;border:none;transition:all .2s;white-space:nowrap;}
+.btn-accent{background:var(--accent);color:#fff;}
+.btn-accent:hover{background:#e5571e;}
+.btn-ghost{background:var(--surface2);color:var(--text);border:1px solid var(--border);}
+.btn-ghost:hover{border-color:var(--accent);color:var(--accent);}
+
+/* LOGIN */
+.login-wrap{display:flex;align-items:center;justify-content:center;min-height:90vh;}
+.login-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:32px;width:100%;max-width:360px;}
+.login-card h2{font-size:1.2rem;margin-bottom:4px;}
+.login-card p{color:var(--muted);font-size:.82rem;margin-bottom:20px;}
+.fg{margin-bottom:12px;}
+.fg label{display:block;font-size:.75rem;font-weight:700;color:var(--muted);margin-bottom:4px;}
+.fg input,.fg select{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:9px 11px;color:var(--text);font-family:var(--font);font-size:.85rem;outline:none;}
+.fg input:focus,.fg select:focus{border-color:var(--accent);}
+
+/* STATS */
+.stats-bar{display:flex;gap:12px;padding:14px 20px;overflow-x:auto;min-width:fit-content;}
+.stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px 18px;flex-shrink:0;}
+.stat-label{font-size:.68rem;font-weight:700;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px;}
+.stat-val{font-size:1.5rem;font-weight:800;}
+
+/* FILTERS */
+.filters{display:flex;gap:10px;padding:0 20px 12px;flex-wrap:wrap;align-items:center;min-width:fit-content;}
+.fi{background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:7px 11px;color:var(--text);font-family:var(--font);font-size:.78rem;outline:none;}
+.fi:focus{border-color:var(--accent);}
+.search-fi{min-width:200px;}
+
+/* MAIN BOARD — 3 TABS */
+.tab-bar{display:flex;gap:4px;padding:0 20px 0;border-bottom:1px solid var(--border);min-width:fit-content;}
+.tab{padding:10px 18px;font-weight:700;font-size:.82rem;color:var(--muted);cursor:pointer;border-bottom:3px solid transparent;transition:all .2s;white-space:nowrap;}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent);}
+.tab-content{display:none;}
+.tab-content.active{display:block;}
+
+/* KANBAN BOARD */
+.kanban{display:flex;gap:14px;padding:16px 20px;overflow-x:auto;min-height:600px;align-items:flex-start;}
+.kanban-col{flex-shrink:0;width:240px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);display:flex;flex-direction:column;}
+.kanban-header{padding:12px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.kanban-title{font-weight:800;font-size:.82rem;display:flex;align-items:center;gap:7px;}
+.kanban-count{background:var(--surface2);border-radius:999px;padding:1px 9px;font-size:.7rem;font-weight:700;color:var(--muted);}
+.kanban-body{flex:1;padding:10px;display:flex;flex-direction:column;gap:8px;overflow-y:auto;max-height:580px;}
+
+/* ORDER CARD */
+.ocard{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px;cursor:pointer;transition:border-color .2s;}
+.ocard:hover{border-color:var(--accent);}
+.ocard-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+.ocard-num{font-weight:800;font-size:.82rem;color:var(--accent);}
+.shift-pill{font-size:.62rem;font-weight:700;padding:2px 7px;border-radius:999px;}
+.shift-pill.day{background:#d9770618;color:var(--yellow);}
+.shift-pill.night{background:#7c3aed18;color:var(--purple);}
+.ocard-row{display:flex;align-items:center;gap:6px;font-size:.74rem;color:var(--muted);margin-bottom:4px;}
+.ocard-row strong{color:var(--text);}
+.ocard-actions{display:flex;gap:5px;margin-top:9px;flex-wrap:wrap;}
+.abtn{background:none;border:1px solid var(--border);border-radius:5px;padding:3px 9px;color:var(--muted);font-family:var(--font);font-size:.68rem;cursor:pointer;transition:all .2s;}
+.abtn:hover{border-color:var(--accent);color:var(--accent);}
+.abtn.g:hover{border-color:var(--green);color:var(--green);}
+.abtn.r:hover{border-color:var(--red);color:var(--red);}
+.abtn.b:hover{border-color:var(--blue);color:var(--blue);}
+.cancel-box{font-size:.7rem;color:var(--red);margin-top:6px;padding:5px 7px;background:#dc262610;border-radius:5px;}
+.empty-col{text-align:center;padding:30px 10px;color:var(--muted);font-size:.78rem;}
+.empty-col .ei{font-size:1.8rem;margin-bottom:6px;}
+
+/* MODAL */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:1000;align-items:center;justify-content:center;padding:16px;}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:24px;width:100%;max-width:460px;max-height:90vh;overflow-y:auto;}
+.modal h2{font-size:1rem;font-weight:800;margin-bottom:18px;}
+.mfooter{display:flex;gap:8px;margin-top:18px;justify-content:flex-end;}
+.close-btn{background:none;border:none;color:var(--muted);font-size:1.2rem;cursor:pointer;float:right;}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+
+/* TOAST */
+.toast{position:fixed;bottom:20px;right:20px;background:var(--green);color:#fff;padding:10px 18px;border-radius:9px;font-weight:700;font-size:.82rem;z-index:9999;display:none;}
+.toast.show{display:block;}
+
+/* EXPORT */
+.export-row{display:flex;gap:10px;padding:0 20px 14px;flex-wrap:wrap;align-items:center;}
+.date-fi{background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:7px 11px;color:var(--text);font-family:var(--font);font-size:.78rem;outline:none;}
+.date-fi:focus{border-color:var(--accent);}
+
+/* TYPE CARDS (Order Type tab) */
+.type-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;padding:16px 20px;}
+.type-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;}
+.type-card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+.type-name{font-weight:800;font-size:.9rem;}
+.type-count{font-size:1.8rem;font-weight:800;}
+.type-sub{font-size:.72rem;color:var(--muted);margin-top:2px;}
+.type-bar{height:5px;border-radius:999px;background:var(--surface2);margin-top:10px;}
+.type-bar-fill{height:100%;border-radius:999px;}
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div style="display:flex;align-items:center;gap:10px">
+    <div class="logo">Sokoni <small>CUSTOMER SERVICE</small></div>
+    <div class="shift-badge"><div class="sdot" id="sdot"></div><span id="slabel">Day Shift</span></div>
+    <div style="display:flex;align-items:center;gap:5px;font-size:.72rem;color:var(--green);font-weight:700;"><div class="live-dot"></div>Live</div>
+  </div>
+  <div class="topbar-right">
+    <span id="livetime" style="color:var(--muted);font-size:.75rem"></span>
+    <button class="btn btn-ghost" onclick="loadOrders()">🔄 Refresh</button>
+    <button class="btn btn-accent" onclick="openModal('new-order-modal')">+ New Order</button>
+    <button class="btn btn-ghost" id="logout-btn" onclick="doLogout()" style="display:none">Sign Out</button>
+  </div>
+</div>
+
+<!-- LOGIN -->
+<div class="login-wrap" id="login-page">
+  <div class="login-card">
+    <h2>Customer Service</h2>
+    <p>Sokoni order tracking dashboard</p>
+    <div class="fg"><label>Email</label><input type="email" id="cs-email" placeholder="cs@sokoni.co.tz"/></div>
+    <div class="fg"><label>Password</label><input type="password" id="cs-pass" placeholder="••••••••"/></div>
+    <button class="btn btn-accent" style="width:100%;justify-content:center;margin-top:6px" onclick="doLogin()">Access Dashboard →</button>
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<div id="dashboard" style="display:none">
+
+  <!-- STATS BAR -->
+  <div class="stats-bar">
+    <div class="stat"><div class="stat-label">Total Today</div><div class="stat-val" id="s-total">0</div></div>
+    <div class="stat"><div class="stat-label">Received</div><div class="stat-val" style="color:var(--muted)" id="s-received">0</div></div>
+    <div class="stat"><div class="stat-label">Accepted</div><div class="stat-val" style="color:var(--blue)" id="s-accepted">0</div></div>
+    <div class="stat"><div class="stat-label">Cooking</div><div class="stat-val" style="color:var(--yellow)" id="s-cooking">0</div></div>
+    <div class="stat"><div class="stat-label">Ready</div><div class="stat-val" style="color:var(--cyan)" id="s-ready">0</div></div>
+    <div class="stat"><div class="stat-label">On the Way</div><div class="stat-val" style="color:var(--purple)" id="s-onway">0</div></div>
+    <div class="stat"><div class="stat-label">Delivered</div><div class="stat-val" style="color:var(--green)" id="s-delivered">0</div></div>
+    <div class="stat"><div class="stat-label">Cancelled</div><div class="stat-val" style="color:var(--red)" id="s-cancelled">0</div></div>
+  </div>
+
+  <!-- FILTERS -->
+  <div class="filters">
+    <input class="fi search-fi" placeholder="🔍 Order # or customer…" oninput="applyFilters()"/>
+    <select class="fi" id="f-shift" onchange="applyFilters()">
+      <option value="">All Shifts</option>
+      <option value="day">☀️ Day</option>
+      <option value="night">🌙 Night</option>
+    </select>
+    <select class="fi" id="f-type" onchange="applyFilters()">
+      <option value="">All Types</option>
+      <option value="food">🍔 Food</option>
+      <option value="grocery">🥦 Grocery</option>
+      <option value="supermarket">🏪 Supermarket</option>
+      <option value="pharmacy">💊 Pharmacy</option>
+    </select>
+    <select class="fi" id="f-driver" onchange="applyFilters()">
+      <option value="">All Drivers</option>
+    </select>
+  </div>
+
+  <!-- EXPORT ROW -->
+  <div class="export-row">
+    <input type="date" class="date-fi" id="exp-date"/>
+    <button class="btn btn-ghost" onclick="exportCSV()">📥 Export CSV</button>
+    <button class="btn btn-ghost" onclick="window.print()">🖨️ Print</button>
+    <button class="btn btn-ghost" onclick="toggleSMSLog()" style="background:#7c3aed22;border-color:#a78bfa;color:#a78bfa">📱 SMS Log</button>
+    <button class="btn btn-ghost" onclick="triggerDailyReport()" style="background:#16a34a22;border-color:#22c55e;color:#22c55e">📊 Send to Google Sheets</button>
+  </div>
+
+  <!-- TABS -->
+  <div class="tab-bar">
+    <div class="tab active" onclick="switchTab('delivery',this)">🚗 Delivery Orders</div>
+    <div class="tab" onclick="switchTab('types',this)">📋 Order Types</div>
+    <div class="tab" onclick="switchTab('cancelled',this)">❌ Cancelled Orders</div>
+  </div>
+
+  <!-- TAB: DELIVERY (Kanban) -->
+  <div class="tab-content active" id="tab-delivery">
+    <div class="kanban">
+
+      <div class="kanban-col">
+        <div class="kanban-header">
+          <div class="kanban-title" style="color:var(--muted)">📥 Received <span class="kanban-count" id="kc-received">0</span></div>
+        </div>
+        <div class="kanban-body" id="kb-received"></div>
+      </div>
+
+      <div class="kanban-col">
+        <div class="kanban-header">
+          <div class="kanban-title" style="color:var(--blue)">✅ Accepted <span class="kanban-count" id="kc-accepted">0</span></div>
+        </div>
+        <div class="kanban-body" id="kb-accepted"></div>
+      </div>
+
+      <div class="kanban-col">
+        <div class="kanban-header">
+          <div class="kanban-title" style="color:var(--yellow)">👨‍🍳 Cooking <span class="kanban-count" id="kc-cooking">0</span></div>
+        </div>
+        <div class="kanban-body" id="kb-cooking"></div>
+      </div>
+
+      <div class="kanban-col">
+        <div class="kanban-header">
+          <div class="kanban-title" style="color:var(--cyan)">📦 Ready <span class="kanban-count" id="kc-ready">0</span></div>
+        </div>
+        <div class="kanban-body" id="kb-ready"></div>
+      </div>
+
+      <div class="kanban-col">
+        <div class="kanban-header">
+          <div class="kanban-title" style="color:var(--purple)">🛵 On the Way <span class="kanban-count" id="kc-onway">0</span></div>
+        </div>
+        <div class="kanban-body" id="kb-onway"></div>
+      </div>
+
+      <div class="kanban-col">
+        <div class="kanban-header">
+          <div class="kanban-title" style="color:var(--green)">🎉 Delivered <span class="kanban-count" id="kc-delivered">0</span></div>
+        </div>
+        <div class="kanban-body" id="kb-delivered"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- TAB: ORDER TYPES -->
+  <div class="tab-content" id="tab-types">
+    <div class="type-grid" id="type-grid"></div>
+    <!-- Detailed list per type -->
+    <div style="padding:0 20px 20px">
+      <div style="font-weight:800;font-size:.95rem;margin-bottom:12px">All Orders by Type</div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;">
+        <table style="width:100%;border-collapse:collapse;">
+          <thead><tr style="border-bottom:1px solid var(--border)">
+            <th style="padding:10px 14px;text-align:left;font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase">Order #</th>
+            <th style="padding:10px 14px;text-align:left;font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase">Customer</th>
+            <th style="padding:10px 14px;text-align:left;font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase">Vendor</th>
+            <th style="padding:10px 14px;text-align:left;font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase">Driver</th>
+            <th style="padding:10px 14px;text-align:left;font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase">Type</th>
+            <th style="padding:10px 14px;text-align:left;font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase">Shift</th>
+            <th style="padding:10px 14px;text-align:left;font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase">Amount</th>
+            <th style="padding:10px 14px;text-align:left;font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase">Status</th>
+          </tr></thead>
+          <tbody id="types-table"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB: CANCELLED -->
+  <div class="tab-content" id="tab-cancelled">
+    <div class="kanban" style="flex-wrap:wrap">
+
+      <div class="kanban-col" style="width:280px">
+        <div class="kanban-header">
+          <div class="kanban-title" style="color:var(--red)">👤 Customer Request <span class="kanban-count" id="kc-cr">0</span></div>
+        </div>
+        <div class="kanban-body" id="kb-cr"></div>
+      </div>
+
+      <div class="kanban-col" style="width:280px">
+        <div class="kanban-header">
+          <div class="kanban-title" style="color:var(--yellow)">🏪 Shop Issues <span class="kanban-count" id="kc-si">0</span></div>
+        </div>
+        <div class="kanban-body" id="kb-si"></div>
+      </div>
+
+      <div class="kanban-col" style="width:280px">
+        <div class="kanban-header">
+          <div class="kanban-title" style="color:var(--purple)">🚗 Driver Issues <span class="kanban-count" id="kc-di">0</span></div>
+        </div>
+        <div class="kanban-body" id="kb-di"></div>
+      </div>
+
+      <div class="kanban-col" style="width:280px">
+        <div class="kanban-header">
+          <div class="kanban-title" style="color:var(--muted)">📦 Other <span class="kanban-count" id="kc-other">0</span></div>
+        </div>
+        <div class="kanban-body" id="kb-other"></div>
+      </div>
+
+    </div>
+  </div>
+
+<!-- SMS LOG PANEL -->
+<div id="sms-log-panel" style="display:none;position:fixed;right:0;top:54px;bottom:0;width:300px;background:#141414;border-left:1px solid #262626;z-index:150;overflow-y:auto">
+  <div style="padding:14px 16px;border-bottom:1px solid #262626;display:flex;align-items:center;justify-content:space-between">
+    <div style="font-weight:800;font-size:.9rem">📱 SMS Log</div>
+    <button onclick="toggleSMSLog()" style="background:none;border:none;color:#666;cursor:pointer;font-size:1.1rem">×</button>
+  </div>
+  <div id="sms-log"><div style="padding:20px;color:#666;font-size:.8rem;text-align:center">No SMS sent yet</div></div>
+</div>
+</div><!-- end dashboard -->
+
+<!-- NEW ORDER MODAL -->
+<div class="modal-overlay" id="new-order-modal">
+  <div class="modal">
+    <button class="close-btn" onclick="closeModal('new-order-modal')">×</button>
+    <h2>📦 Record New Order</h2>
+    <div class="form-row">
+      <div class="fg"><label>Order Number *</label><input type="text" id="no-num" placeholder="ORD-201"/></div>
+      <div class="fg"><label>Shift</label>
+        <select id="no-shift"><option value="day">☀️ Day Shift</option><option value="night">🌙 Night Shift</option></select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="fg"><label>Customer Name *</label><input type="text" id="no-customer" placeholder="Full name"/></div>
+      <div class="fg"><label>Customer Phone</label><input type="tel" id="no-phone" placeholder="+255 7XX XXX XXX"/></div>
+    </div>
+    <div class="form-row">
+      <div class="fg"><label>Vendor / Shop *</label>
+        <select id="no-vendor"><option value="">Select…</option></select>
+      </div>
+      <div class="fg"><label>Order Type</label>
+        <select id="no-type">
+          <option value="food">🍔 Food</option>
+          <option value="grocery">🥦 Grocery</option>
+          <option value="supermarket">🏪 Supermarket</option>
+          <option value="pharmacy">💊 Pharmacy</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="fg"><label>Driver Name</label><input type="text" id="no-driver" placeholder="Driver's name"/></div>
+    <div class="fg"><label>Driver Phone</label><input type="tel" id="no-driver-phone" placeholder="+255 7XX XXX XXX"/></div>
+      <div class="fg"><label>Payment Method</label>
+        <select id="no-payment">
+          <option value="cash">Cash</option>
+          <option value="mpesa">M-Pesa</option>
+          <option value="tigo_pesa">Tigo Pesa</option>
+          <option value="airtel_money">Airtel Money</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="fg"><label>Total Amount (TZS)</label><input type="number" id="no-amount" placeholder="5000"/></div>
+      <div class="fg"><label>Initial Status</label>
+        <select id="no-status">
+          <option value="received">📥 Received</option>
+          <option value="accepted">✅ Accepted</option>
+          <option value="cooking">👨‍🍳 Cooking</option>
+        </select>
+      </div>
+    </div>
+    <div class="fg"><label>Delivery Address</label><input type="text" id="no-address" placeholder="Area, street…"/></div>
+    <div class="fg"><label>Notes</label><input type="text" id="no-notes" placeholder="Special instructions…"/></div>
+    <div class="mfooter">
+      <button class="btn btn-ghost" onclick="closeModal('new-order-modal')">Cancel</button>
+      <button class="btn btn-accent" onclick="submitOrder()">Record Order →</button>
+    </div>
+  </div>
+</div>
+
+<!-- CANCEL MODAL -->
+<div class="modal-overlay" id="cancel-modal">
+  <div class="modal">
+    <button class="close-btn" onclick="closeModal('cancel-modal')">×</button>
+    <h2>❌ Cancel Order</h2>
+    <div class="fg"><label>Reason</label>
+      <select id="cancel-reason">
+        <option value="Customer request">Customer request</option>
+        <option value="Shop closed">Shop closed</option>
+        <option value="Item out of stock">Item out of stock</option>
+        <option value="Driver unavailable">Driver unavailable</option>
+        <option value="Wrong address">Wrong address</option>
+        <option value="Payment failed">Payment failed</option>
+        <option value="Other">Other</option>
+      </select>
+    </div>
+    <div class="fg"><label>Notes</label><input type="text" id="cancel-notes" placeholder="Optional details…"/></div>
+    <div class="mfooter">
+      <button class="btn btn-ghost" onclick="closeModal('cancel-modal')">Back</button>
+      <button class="btn btn-accent" style="background:var(--red)" onclick="confirmCancel()">Confirm Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPABASE_URL='https://ppzrofbkwzxbdahtcybu.supabase.co';
+const SUPABASE_ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBwenJvZmJrd3p4YmRhaHRjeWJ1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjQzMDcsImV4cCI6MjA5NzkwMDMwN30.kH73nfcpnLIsoXohYuGGtmfnf57Y3QGI0J5ipIYIGHY';
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON);
+
+// STATUS STAGES
+const STAGES=['received','accepted','cooking','ready','on the way','delivered'];
+const STAGE_META={
+  received:{label:'📥 Received',color:'var(--muted)',next:'accepted'},
+  accepted:{label:'✅ Accepted',color:'var(--blue)',next:'cooking'},
+  cooking:{label:'👨‍🍳 Cooking',color:'var(--yellow)',next:'ready'},
+  ready:{label:'📦 Ready',color:'var(--cyan)',next:'on the way'},
+  'on the way':{label:'🛵 On the Way',color:'var(--purple)',next:'delivered'},
+  delivered:{label:'🎉 Delivered',color:'var(--green)',next:null},
+  cancelled:{label:'❌ Cancelled',color:'var(--red)',next:null},
+};
+const CANCEL_GROUPS={
+  'Customer request':'cr','Shop closed':'si','Item out of stock':'si',
+  'Driver unavailable':'di','Wrong address':'cr','Payment failed':'cr','Other':'other'
+};
+const TYPE_META={food:{emoji:'🍔',color:'var(--yellow)'},grocery:{emoji:'🥦',color:'var(--green)'},supermarket:{emoji:'🏪',color:'var(--purple)'},pharmacy:{emoji:'💊',color:'var(--blue)'}};
+
+let allOrders=[];
+let filteredOrders=[];
+let cancelTargetId=null;
+
+// DEMO DATA
+const DEMO=[
+  {id:'ORD-101',customer_name:'Aisha Mohammed',customer_phone:'+255744123456',driver_name:'Juma Hassan',vendor:'Mama Africa Kitchen',order_type:'food',shift:'day',total_amount:7500,payment_method:'mpesa',status:'on the way',delivery_address:'Kinondoni',cancel_reason:null,notes:'',created_at:new Date().toISOString()},
+  {id:'ORD-102',customer_name:'John Msigwa',customer_phone:'+255754000111',driver_name:'Peter Mwangi',vendor:'FreshMart Superstore',order_type:'supermarket',shift:'day',total_amount:24700,payment_method:'cash',status:'cooking',delivery_address:'Msasani',cancel_reason:null,notes:'',created_at:new Date().toISOString()},
+  {id:'ORD-103',customer_name:'Fatuma Salim',customer_phone:'+255765888222',driver_name:'Ali Rashid',vendor:'Dawa Plus Pharmacy',order_type:'pharmacy',shift:'night',total_amount:1200,payment_method:'tigo_pesa',status:'delivered',delivery_address:'Kariakoo',cancel_reason:null,notes:'',created_at:new Date().toISOString()},
+  {id:'ORD-104',customer_name:'Carlos Mbeki',customer_phone:'+255784333444',driver_name:'',vendor:'Green Leaf Groceries',order_type:'grocery',shift:'day',total_amount:5500,payment_method:'airtel_money',status:'cancelled',delivery_address:'Ilala',cancel_reason:'Customer request',notes:'',created_at:new Date().toISOString()},
+  {id:'ORD-105',customer_name:'Raha Juma',customer_phone:'+255712888777',driver_name:'Juma Hassan',vendor:'Zanzibar Bites',order_type:'food',shift:'night',total_amount:7500,payment_method:'mpesa',status:'received',delivery_address:'Upanga',cancel_reason:null,notes:'',created_at:new Date().toISOString()},
+  {id:'ORD-106',customer_name:'Salma Kato',customer_phone:'+255722555444',driver_name:'Ali Rashid',vendor:'Mama Africa Kitchen',order_type:'food',shift:'day',total_amount:6000,payment_method:'cash',status:'ready',delivery_address:'Sinza',cancel_reason:null,notes:'',created_at:new Date().toISOString()},
+  {id:'ORD-107',customer_name:'David Kimani',customer_phone:'+255733666555',driver_name:'',vendor:'City Pharmacy',order_type:'pharmacy',shift:'night',total_amount:3500,payment_method:'mpesa',status:'accepted',delivery_address:'Temeke',cancel_reason:null,notes:'Ring bell twice',created_at:new Date().toISOString()},
+  {id:'ORD-108',customer_name:'Grace Osei',customer_phone:'+255744777666',driver_name:'Peter Mwangi',vendor:'FreshMart Superstore',order_type:'supermarket',shift:'day',total_amount:18000,payment_method:'cash',status:'cancelled',delivery_address:'Mbagala',cancel_reason:'Shop closed',notes:'',created_at:new Date().toISOString()},
+];
+
+// ── INIT ──
+window.addEventListener('DOMContentLoaded',async()=>{
+  setShift();startClock();
+  document.getElementById('exp-date').value=new Date().toISOString().split('T')[0];
+  const{data:{session}}=await sb.auth.getSession();
+  if(session){showDashboard();}
+  sb.auth.onAuthStateChange((_,sess)=>{if(sess)showDashboard();});
+});
+
+async function doLogin(){
+  const email=document.getElementById('cs-email').value;
+  const pass=document.getElementById('cs-pass').value;
+  if(pass==='cs123'){showDashboard();return;}
+  const{error}=await sb.auth.signInWithPassword({email,password:pass});
+  if(error){showToast('❌ '+error.message);return;}
+  showDashboard();
+}
+function doLogout(){sb.auth.signOut();document.getElementById('dashboard').style.display='none';document.getElementById('login-page').style.display='flex';document.getElementById('logout-btn').style.display='none';}
+
+function showDashboard(){
+  document.getElementById('login-page').style.display='none';
+  document.getElementById('dashboard').style.display='block';
+  document.getElementById('logout-btn').style.display='flex';
+  loadOrders();loadShops();
+  // Realtime
+  sb.channel('cs').on('postgres_changes',{event:'*',schema:'public',table:'cs_orders'},()=>loadOrders()).subscribe();
+}
+
+async function loadOrders(){
+  try{
+    const today=new Date().toISOString().split('T')[0];
+    const{data,error}=await sb.from('cs_orders').select('*').gte('created_at',today+'T00:00:00').order('created_at',{ascending:false});
+    allOrders=(error||!data||data.length===0)?DEMO:data;
+  }catch{allOrders=DEMO;}
+  applyFilters();
+  populateDriverFilter();
+}
+
+async function loadShops(){
+  try{
+    const{data}=await sb.from('shops').select('name').eq('is_active',true);
+    const sel=document.getElementById('no-vendor');
+    const shops=data&&data.length?data.map(s=>s.name):['Mama Africa Kitchen','FreshMart Superstore','Dawa Plus Pharmacy','Green Leaf Groceries','Zanzibar Bites'];
+    shops.forEach(n=>{const o=document.createElement('option');o.value=n;o.textContent=n;sel.appendChild(o);});
+  }catch{}
+}
+
+function populateDriverFilter(){
+  const sel=document.getElementById('f-driver');
+  const current=sel.value;
+  sel.innerHTML='<option value="">All Drivers</option>';
+  [...new Set(allOrders.map(o=>o.driver_name).filter(Boolean))].forEach(d=>{
+    const o=document.createElement('option');o.value=d;o.textContent=d;sel.appendChild(o);
+  });
+  sel.value=current;
+}
+
+// ── FILTERS ──
+function applyFilters(){
+  const q=document.querySelector('.search-fi').value.toLowerCase();
+  const shift=document.getElementById('f-shift').value;
+  const type=document.getElementById('f-type').value;
+  const driver=document.getElementById('f-driver').value;
+  filteredOrders=allOrders.filter(o=>{
+    if(q&&!((o.id||'').toLowerCase().includes(q)||(o.customer_name||'').toLowerCase().includes(q)||(o.driver_name||'').toLowerCase().includes(q)))return false;
+    if(shift&&o.shift!==shift)return false;
+    if(type&&o.order_type!==type)return false;
+    if(driver&&o.driver_name!==driver)return false;
+    return true;
+  });
+  renderAll();
+}
+
+// ── RENDER ALL ──
+function renderAll(){
+  updateStats();
+  renderKanban();
+  renderTypesTab();
+  renderCancelledTab();
+}
+
+function updateStats(){
+  const counts={received:0,accepted:0,cooking:0,ready:0,'on the way':0,delivered:0,cancelled:0};
+  filteredOrders.forEach(o=>{if(counts[o.status]!==undefined)counts[o.status]++;});
+  document.getElementById('s-total').textContent=filteredOrders.length;
+  document.getElementById('s-received').textContent=counts.received;
+  document.getElementById('s-accepted').textContent=counts.accepted;
+  document.getElementById('s-cooking').textContent=counts.cooking;
+  document.getElementById('s-ready').textContent=counts.ready;
+  document.getElementById('s-onway').textContent=counts['on the way'];
+  document.getElementById('s-delivered').textContent=counts.delivered;
+  document.getElementById('s-cancelled').textContent=counts.cancelled;
+}
+
+// ── KANBAN ──
+function renderKanban(){
+  const cols={received:[],accepted:[],cooking:[],ready:[],'on the way':[],delivered:[]};
+  filteredOrders.filter(o=>o.status!=='cancelled').forEach(o=>{if(cols[o.status])cols[o.status].push(o);});
+  const map={received:'received',accepted:'accepted',cooking:'cooking',ready:'ready','on the way':'onway',delivered:'delivered'};
+  Object.entries(cols).forEach(([status,orders])=>{
+    const key=map[status];
+    document.getElementById('kc-'+key).textContent=orders.length;
+    const body=document.getElementById('kb-'+key);
+    if(!orders.length){body.innerHTML=`<div class="empty-col"><div class="ei">${STAGE_META[status].label.split(' ')[0]}</div><p>No orders</p></div>`;return;}
+    body.innerHTML=orders.map(o=>kanbanCard(o,status)).join('');
+  });
+}
+
+function kanbanCard(o,status){
+  const meta=STAGE_META[status];
+  const nextStatus=meta.next;
+  const typeM=TYPE_META[o.order_type]||{emoji:'📦',color:'var(--muted)'};
+  const shift=o.shift||'day';
+  let actions='';
+  if(nextStatus){
+    actions+=`<button class="abtn g" onclick="moveNext('${o.id}','${nextStatus}')">→ ${(STAGE_META[nextStatus]?.label||nextStatus).replace(/[^\w\s]/g,'').trim()}</button>`;
+  }
+  actions+=`<button class="abtn b" onclick="callCustomer('${o.customer_phone}')">📞</button>`;
+  if(status!=='delivered'){
+    actions+=`<button class="abtn r" onclick="openCancelModal('${o.id}')">✗</button>`;
+  }
+  return `
+    <div class="ocard">
+      <div class="ocard-top">
+        <div class="ocard-num">#${o.id}</div>
+        <span class="shift-pill ${shift}">${shift==='day'?'☀️ Day':'🌙 Night'}</span>
+      </div>
+      <div class="ocard-row">👤 <strong>${o.customer_name||'—'}</strong></div>
+      <div class="ocard-row">🏪 ${o.vendor||'—'}</div>
+      <div class="ocard-row">🚗 ${o.driver_name||'<span style="color:var(--red)">No driver</span>'}</div>
+      <div class="ocard-row">${typeM.emoji} <span style="text-transform:capitalize;color:${typeM.color}">${o.order_type||'—'}</span></div>
+      <div class="ocard-row">💰 TZS ${(o.total_amount||0).toLocaleString()}</div>
+      <div class="ocard-actions">${actions}</div>
+    </div>`;
+}
+
+// ── ORDER TYPES TAB ──
+function renderTypesTab(){
+  const types=['food','grocery','supermarket','pharmacy'];
+  const total=filteredOrders.length||1;
+  document.getElementById('type-grid').innerHTML=types.map(t=>{
+    const m=TYPE_META[t];
+    const count=filteredOrders.filter(o=>o.order_type===t).length;
+    const pct=Math.round(count/total*100);
+    const revenue=filteredOrders.filter(o=>o.order_type===t).reduce((s,o)=>s+(o.total_amount||0),0);
+    return `<div class="type-card">
+      <div class="type-card-header">
+        <div class="type-name">${m.emoji} ${t.charAt(0).toUpperCase()+t.slice(1)}</div>
+        <div style="font-size:.72rem;color:var(--muted)">${pct}%</div>
+      </div>
+      <div class="type-count" style="color:${m.color}">${count}</div>
+      <div class="type-sub">TZS ${revenue.toLocaleString()} revenue</div>
+      <div class="type-bar"><div class="type-bar-fill" style="width:${pct}%;background:${m.color}"></div></div>
+    </div>`;
+  }).join('');
+
+  // Table
+  document.getElementById('types-table').innerHTML=filteredOrders.map(o=>{
+    const m=TYPE_META[o.order_type]||{emoji:'📦'};
+    const sm=STAGE_META[o.status]||{label:o.status,color:'var(--muted)'};
+    return `<tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:10px 14px;font-weight:700;font-size:.78rem;color:var(--accent)">#${o.id}</td>
+      <td style="padding:10px 14px;font-size:.78rem">${o.customer_name||'—'}</td>
+      <td style="padding:10px 14px;font-size:.78rem">${o.vendor||'—'}</td>
+      <td style="padding:10px 14px;font-size:.78rem">${o.driver_name||'—'}</td>
+      <td style="padding:10px 14px;font-size:.78rem">${m.emoji} ${o.order_type}</td>
+      <td style="padding:10px 14px;font-size:.78rem">${o.shift==='day'?'☀️ Day':'🌙 Night'}</td>
+      <td style="padding:10px 14px;font-size:.78rem;font-weight:700">TZS ${(o.total_amount||0).toLocaleString()}</td>
+      <td style="padding:10px 14px;font-size:.75rem;font-weight:700;color:${sm.color}">${sm.label}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ── CANCELLED TAB ──
+function renderCancelledTab(){
+  const cancelled=filteredOrders.filter(o=>o.status==='cancelled');
+  const groups={cr:[],si:[],di:[],other:[]};
+  cancelled.forEach(o=>{
+    const g=CANCEL_GROUPS[o.cancel_reason]||'other';
+    groups[g].push(o);
+  });
+  Object.entries(groups).forEach(([g,orders])=>{
+    document.getElementById('kc-'+g).textContent=orders.length;
+    const body=document.getElementById('kb-'+g);
+    if(!orders.length){body.innerHTML='<div class="empty-col"><div class="ei">❌</div><p>None</p></div>';return;}
+    body.innerHTML=orders.map(o=>`
+      <div class="ocard">
+        <div class="ocard-top">
+          <div class="ocard-num">#${o.id}</div>
+          <span class="shift-pill ${o.shift||'day'}">${(o.shift||'day')==='day'?'☀️ Day':'🌙 Night'}</span>
+        </div>
+        <div class="ocard-row">👤 <strong>${o.customer_name||'—'}</strong></div>
+        <div class="ocard-row">🏪 ${o.vendor||'—'}</div>
+        <div class="ocard-row">🚗 ${o.driver_name||'No driver'}</div>
+        <div class="ocard-row">💰 TZS ${(o.total_amount||0).toLocaleString()}</div>
+        ${o.cancel_reason?`<div class="cancel-box">Reason: ${o.cancel_reason}</div>`:''}
+        <div class="ocard-actions">
+          <button class="abtn g" onclick="restoreOrder('${o.id}')">↩ Restore</button>
+          <button class="abtn b" onclick="callCustomer('${o.customer_phone}')">📞</button>
+        </div>
+      </div>`).join('');
+  });
+}
+
+// ── ACTIONS ──
+async function moveNext(id,nextStatus){
+  await updateOrderStatus(id,nextStatus);
+  showToast('✅ Moved to '+nextStatus);
+}
+
+function openCancelModal(id){cancelTargetId=id;openModal('cancel-modal');}
+
+async function confirmCancel(){
+  if(!cancelTargetId)return;
+  const reason=document.getElementById('cancel-reason').value;
+  const notes=document.getElementById('cancel-notes').value;
+  const o=allOrders.find(x=>x.id===cancelTargetId);
+  if(o){o.status='cancelled';o.cancel_reason=reason;o.notes=notes;}
+  try{await sb.from('cs_orders').update({status:'cancelled',cancel_reason:reason,notes,updated_at:new Date().toISOString()}).eq('id',cancelTargetId);}catch{}
+  closeModal('cancel-modal');
+  applyFilters();
+  showToast('❌ Order #'+cancelTargetId+' cancelled');
+  cancelTargetId=null;
+}
+
+async function restoreOrder(id){
+  await updateOrderStatus(id,'received');
+  showToast('↩ Order #'+id+' restored');
+}
+
+async function updateOrderStatus(id,status){
+  const o=allOrders.find(x=>x.id===id);
+  if(o)o.status=status;
+  try{await sb.from('cs_orders').update({status,updated_at:new Date().toISOString()}).eq('id',id);}catch{}
+  // Send SMS notification
+  if(o && typeof notifyStatusChange === 'function'){
+    notifyStatusChange(o, status).catch(e=>console.log('SMS error:',e));
+    showToast('📱 SMS sent to customer');
+  }
+  applyFilters();
+}
+
+function callCustomer(phone){if(!phone)return showToast('No phone');window.open('tel:'+phone);}
+
+// ── SUBMIT ORDER ──
+async function submitOrder(){
+  const num=document.getElementById('no-num').value.trim();
+  const customer=document.getElementById('no-customer').value.trim();
+  const phone=document.getElementById('no-phone').value.trim();
+  const vendor=document.getElementById('no-vendor').value;
+  const type=document.getElementById('no-type').value;
+  const shift=document.getElementById('no-shift').value;
+  const driver=document.getElementById('no-driver').value.trim();
+  const payment=document.getElementById('no-payment').value;
+  const amount=parseInt(document.getElementById('no-amount').value)||0;
+  const address=document.getElementById('no-address').value.trim();
+  const notes=document.getElementById('no-notes').value.trim();
+  const status=document.getElementById('no-status').value;
+  if(!num||!customer||!vendor){showToast('❌ Fill order #, customer, vendor');return;}
+  const newOrder={id:num,customer_name:customer,customer_phone:phone,vendor,driver_name:driver,order_type:type,shift,total_amount:amount,payment_method:payment,delivery_address:address,notes,status,cancel_reason:null,created_at:new Date().toISOString()};
+  try{await sb.from('cs_orders').insert(newOrder);}catch{}
+  sendToSheet('new_order',{order:newOrder});
+  allOrders.unshift(newOrder);
+  closeModal('new-order-modal');
+  applyFilters();
+  showToast('✅ Order #'+num+' recorded!');
+  ['no-num','no-customer','no-phone','no-driver','no-amount','no-address','no-notes'].forEach(i=>document.getElementById(i).value='');
+}
+
+// ── GOOGLE SHEETS WEBHOOK ──
+const SHEET_WEBHOOK='https://script.google.com/macros/s/AKfycbzep9TaadQVSC9F4dD-tulz3isYPVAcvdLKyCiGvLDmRR3GKD1cI3WsPlQiYJZgRv36/exec';
+async function sendToSheet(action,payload){
+  if(!SHEET_WEBHOOK||SHEET_WEBHOOK.includes('YOUR_'))return;
+  try{await fetch(SHEET_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,...payload}),mode:'no-cors'});}catch(e){}
+}
+async function triggerDailyReport(){
+  const date=document.getElementById('exp-date').value||new Date().toISOString().split('T')[0];
+  if(!SHEET_WEBHOOK||SHEET_WEBHOOK.includes('YOUR_')){showToast('⚠️ Add Apps Script URL first');return;}
+  await sendToSheet('daily_report',{date});
+  showToast('📊 Report sent to Google Sheets!');
+}
+
+// ── EXPORT ──
+function exportCSV(){
+  const date=document.getElementById('exp-date').value||new Date().toISOString().split('T')[0];
+  const rows=allOrders.filter(o=>o.created_at&&o.created_at.startsWith(date));
+  if(!rows.length){showToast('No orders for that date');return;}
+  const h=['Order #','Customer','Phone','Vendor','Driver','Type','Shift','Amount(TZS)','Payment','Address','Status','Cancel Reason','Date'];
+  const csv=[h,...rows.map(o=>[o.id,o.customer_name,o.customer_phone,o.vendor,o.driver_name,o.order_type,o.shift,o.total_amount,o.payment_method,o.delivery_address,o.status,o.cancel_reason||'',new Date(o.created_at).toLocaleString()])].map(r=>r.map(v=>`"${v||''}"`).join(',')).join('\n');
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download=`sokoni-cs-${date}.csv`;a.click();
+  showToast('📥 Exported!');
+}
+
+// ── HELPERS ──
+function switchTab(name,el){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('tab-'+name).classList.add('active');
+}
+
+function setShift(){
+  const night=new Date().getHours()>=20||new Date().getHours()<6;
+  document.getElementById('slabel').textContent=night?'Night Shift':'Day Shift';
+  document.getElementById('sdot').className='sdot'+(night?' night':'');
+  document.getElementById('no-shift').value=night?'night':'day';
+}
+
+function startClock(){setInterval(()=>{document.getElementById('livetime').textContent=new Date().toLocaleTimeString('en-TZ',{hour:'2-digit',minute:'2-digit',second:'2-digit'});},1000);}
+function openModal(id){document.getElementById(id).classList.add('open');}
+function closeModal(id){document.getElementById(id).classList.remove('open');}
+function toggleSMSLog(){
+  const p=document.getElementById('sms-log-panel');
+  p.style.display=p.style.display==='none'?'block':'none';
+}
+
+function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3000);}
+</script>
+</body>
+</html>
