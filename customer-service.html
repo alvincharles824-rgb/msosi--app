@@ -688,14 +688,14 @@ async function submitOrder(){
 }
 
 // ── GOOGLE SHEETS WEBHOOK ──
-const https://script.google.com/macros/s/AKfycbzep9TaadQVSC9F4dD-tulz3isYPVAcvdLKyCiGvLDmRR3GKD1cI3WsPlQiYJZgRv36/exec='YOUR_APPS_SCRIPT_WEB_APP_URL';
+const SHEET_WEBHOOK='https://script.google.com/macros/s/AKfycbzep9TaadQVSC9F4dD-tulz3isYPVAcvdLKyCiGvLDmRR3GKD1cI3WsPlQiYJZgRv36/exec';
 async function sendToSheet(action,payload){
-  if(!https://script.google.com/macros/s/AKfycbzep9TaadQVSC9F4dD-tulz3isYPVAcvdLKyCiGvLDmRR3GKD1cI3WsPlQiYJZgRv36/exec||https://script.google.com/macros/s/AKfycbzep9TaadQVSC9F4dD-tulz3isYPVAcvdLKyCiGvLDmRR3GKD1cI3WsPlQiYJZgRv36/exec.includes('YOUR_'))return;
-  try{await fetch(https://script.google.com/macros/s/AKfycbzep9TaadQVSC9F4dD-tulz3isYPVAcvdLKyCiGvLDmRR3GKD1cI3WsPlQiYJZgRv36/exec,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,...payload}),mode:'no-cors'});}catch(e){}
+  if(!SHEET_WEBHOOK||SHEET_WEBHOOK.includes('YOUR_'))return;
+  try{await fetch(SHEET_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,...payload}),mode:'no-cors'});}catch(e){}
 }
 async function triggerDailyReport(){
   const date=document.getElementById('exp-date').value||new Date().toISOString().split('T')[0];
-  if(!https://script.google.com/macros/s/AKfycbzep9TaadQVSC9F4dD-tulz3isYPVAcvdLKyCiGvLDmRR3GKD1cI3WsPlQiYJZgRv36/exec||https://script.google.com/macros/s/AKfycbzep9TaadQVSC9F4dD-tulz3isYPVAcvdLKyCiGvLDmRR3GKD1cI3WsPlQiYJZgRv36/exec.includes('YOUR_')){showToast('⚠️ Add Apps Script URL first');return;}
+  if(!SHEET_WEBHOOK||SHEET_WEBHOOK.includes('YOUR_')){showToast('⚠️ Add Apps Script URL first');return;}
   await sendToSheet('daily_report',{date});
   showToast('📊 Report sent to Google Sheets!');
 }
