@@ -8,6 +8,11 @@
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet"/>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<link rel="manifest" href="manifest.json"/>
+<meta name="theme-color" content="#FF6B2C"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="Sokoni Driver"/>
 <style>
 :root{
   --bg:#0d0d0d;--surface:#181818;--surface2:#222;--border:#2a2a2a;
@@ -154,6 +159,11 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);min-height:1
     <div class="fg"><label>Phone / Email</label><input type="text" id="d-email" placeholder="+255 7XX or email"/></div>
     <div class="fg"><label>Password</label><input type="password" id="d-pass" placeholder="••••••••"/></div>
     <button class="btn-full" onclick="driverLogin()">Start Driving →</button>
+  <div style="margin-top:14px;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:8px;padding:10px;font-size:.76rem">
+    <div style="color:#f59e0b;font-weight:700;margin-bottom:5px">🔑 Demo Login</div>
+    <div style="color:#888">Email: <span style="color:#f5f5f5">any email</span></div>
+    <div style="color:#888">Password: <span style="color:#FF6B2C;font-weight:700">driver123</span></div>
+  </div>
   </div>
 </div>
 
@@ -353,6 +363,7 @@ window.addEventListener('DOMContentLoaded',async()=>{
 async function driverLogin(){
   const email=document.getElementById('d-email').value;
   const pass=document.getElementById('d-pass').value;
+  // Demo bypass — any email + driver123 works
   if(pass==='driver123'||pass==='cs123'){
     currentDriver.email=email||'driver@sokoni.co.tz';
     showApp();return;
@@ -669,6 +680,12 @@ function showToast(msg,type=''){
   const t=document.getElementById('toast');
   t.textContent=msg;t.className='toast show'+(type?' '+type:'');
   setTimeout(()=>t.classList.remove('show'),3000);
+}
+</script>
+
+<script>
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js').catch(()=>{});
 }
 </script>
 </body>
