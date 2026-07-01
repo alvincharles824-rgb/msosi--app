@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Sokoni — Customer Service</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="sms.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet"/>
 <style>
 :root{--bg:#0a0a0a;--surface:#141414;--surface2:#1e1e1e;--border:#262626;--accent:#FF6B2C;--text:#f5f5f5;--muted:#666;--green:#22c55e;--red:#ef4444;--blue:#3b82f6;--yellow:#f59e0b;--purple:#a78bfa;--cyan:#06b6d4;--orange:#f97316;--font:'Plus Jakarta Sans',sans-serif;--radius:10px;}
@@ -138,6 +139,11 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);min-height:1
     <div class="fg"><label>Email</label><input type="email" id="cs-email" placeholder="cs@sokoni.co.tz"/></div>
     <div class="fg"><label>Password</label><input type="password" id="cs-pass" placeholder="••••••••"/></div>
     <button class="btn btn-accent" style="width:100%;justify-content:center;margin-top:6px" onclick="doLogin()">Access Dashboard →</button>
+    <div style="margin-top:14px;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:8px;padding:10px;font-size:.76rem">
+      <div style="color:#f59e0b;font-weight:700;margin-bottom:5px">🔑 Demo Login</div>
+      <div style="color:#888">Email: <span style="color:#f5f5f5">any email</span></div>
+      <div style="color:#888">Password: <span style="color:#FF6B2C;font-weight:700">cs123</span></div>
+    </div>
   </div>
 </div>
 
@@ -181,6 +187,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);min-height:1
     <input type="date" class="date-fi" id="exp-date"/>
     <button class="btn btn-ghost" onclick="exportCSV()">📥 Export CSV</button>
     <button class="btn btn-ghost" onclick="window.print()">🖨️ Print</button>
+    <button class="btn btn-ghost" onclick="toggleSMSLog()" style="background:#7c3aed22;border-color:#a78bfa;color:#a78bfa">📱 SMS Log</button>
     <button class="btn btn-ghost" onclick="triggerDailyReport()" style="background:#16a34a22;border-color:#22c55e;color:#22c55e">📊 Send to Google Sheets</button>
   </div>
 
@@ -299,6 +306,14 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);min-height:1
     </div>
   </div>
 
+<!-- SMS LOG PANEL -->
+<div id="sms-log-panel" style="display:none;position:fixed;right:0;top:54px;bottom:0;width:300px;background:#141414;border-left:1px solid #262626;z-index:150;overflow-y:auto">
+  <div style="padding:14px 16px;border-bottom:1px solid #262626;display:flex;align-items:center;justify-content:space-between">
+    <div style="font-weight:800;font-size:.9rem">📱 SMS Log</div>
+    <button onclick="toggleSMSLog()" style="background:none;border:none;color:#666;cursor:pointer;font-size:1.1rem">×</button>
+  </div>
+  <div id="sms-log"><div style="padding:20px;color:#666;font-size:.8rem;text-align:center">No SMS sent yet</div></div>
+</div>
 </div><!-- end dashboard -->
 
 <!-- NEW ORDER MODAL -->
@@ -331,6 +346,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);min-height:1
     </div>
     <div class="form-row">
       <div class="fg"><label>Driver Name</label><input type="text" id="no-driver" placeholder="Driver's name"/></div>
+    <div class="fg"><label>Driver Phone</label><input type="tel" id="no-driver-phone" placeholder="+255 7XX XXX XXX"/></div>
       <div class="fg"><label>Payment Method</label>
         <select id="no-payment">
           <option value="cash">Cash</option>
@@ -435,6 +451,7 @@ window.addEventListener('DOMContentLoaded',async()=>{
 async function doLogin(){
   const email=document.getElementById('cs-email').value;
   const pass=document.getElementById('cs-pass').value;
+  // Demo bypass — any email + cs123 works
   if(pass==='cs123'){showDashboard();return;}
   const{error}=await sb.auth.signInWithPassword({email,password:pass});
   if(error){showToast('❌ '+error.message);return;}
@@ -657,6 +674,11 @@ async function updateOrderStatus(id,status){
   const o=allOrders.find(x=>x.id===id);
   if(o)o.status=status;
   try{await sb.from('cs_orders').update({status,updated_at:new Date().toISOString()}).eq('id',id);}catch{}
+  // Send SMS notification
+  if(o && typeof notifyStatusChange === 'function'){
+    notifyStatusChange(o, status).catch(e=>console.log('SMS error:',e));
+    showToast('📱 SMS sent to customer');
+  }
   applyFilters();
 }
 
@@ -729,6 +751,11 @@ function setShift(){
 function startClock(){setInterval(()=>{document.getElementById('livetime').textContent=new Date().toLocaleTimeString('en-TZ',{hour:'2-digit',minute:'2-digit',second:'2-digit'});},1000);}
 function openModal(id){document.getElementById(id).classList.add('open');}
 function closeModal(id){document.getElementById(id).classList.remove('open');}
+function toggleSMSLog(){
+  const p=document.getElementById('sms-log-panel');
+  p.style.display=p.style.display==='none'?'block':'none';
+}
+
 function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3000);}
 </script>
 </body>
