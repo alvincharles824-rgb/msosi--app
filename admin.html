@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+ <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
@@ -111,9 +111,17 @@
   <div class="login-card">
     <h2>Admin Login</h2>
     <p>Sokoni platform administration</p>
-    <div class="form-group"><label>Admin Email</label><input type="email" id="adm-email" placeholder="admin@sokoni.co.tz"/></div>
-    <div class="form-group"><label>Password</label><input type="password" id="adm-pass" placeholder="••••••••"/></div>
+    <div class="form-group"><label>Admin Email</label><input type="email" id="adm-email" placeholder="admin@sokoni.co.tz" value="admin@sokoni.co.tz"/></div>
+    <div class="form-group"><label>Password</label><input type="password" id="adm-pass" placeholder="••••••••" value="admin123"/></div>
+    <div style="background:#FF6B2C22;border:1px solid #FF6B2C44;border-radius:8px;padding:10px;margin-bottom:14px;font-size:.78rem;color:#FF6B2C">
+      <strong>Demo credentials pre-filled</strong><br/>Email: admin@sokoni.co.tz · Password: admin123
+    </div>
     <button class="btn-primary" onclick="adminLogin()">Access Dashboard →</button>
+    <div style="margin-top:16px;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:8px;padding:12px;font-size:.78rem">
+      <div style="color:#f59e0b;font-weight:700;margin-bottom:6px">🔑 Demo Login</div>
+      <div style="color:#888">Email: <span style="color:#f5f5f5">any email</span></div>
+      <div style="color:#888">Password: <span style="color:#FF6B2C;font-weight:700">admin123</span></div>
+    </div>
   </div>
 </div>
 
@@ -363,7 +371,8 @@ async function adminLogin() {
   const email = document.getElementById('adm-email').value;
   const pass = document.getElementById('adm-pass').value;
   // Demo bypass
-  if (email === 'admin@sokoni.co.tz' && pass === 'admin123') {
+  // Demo bypass — any email + admin123 works
+  if (pass === 'admin123') {
     showDashboard(); return;
   }
   const { error } = await sb.auth.signInWithPassword({ email, password: pass });
