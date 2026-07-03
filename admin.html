@@ -1,4 +1,4 @@
- <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
@@ -395,9 +395,22 @@ function showDashboard() {
   document.getElementById('login-page').style.display = 'none';
   document.getElementById('dashboard').style.display = 'flex';
   loadAllData();
+  subscribeRealtime();
 }
 
 // ── LOAD DATA ──
+// ── REALTIME: Admin sees ALL changes live ──
+function subscribeRealtime() {
+  sb.channel('admin-realtime')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'cs_orders' }, payload => {
+      // Flash notification
+      const o = payload.new || payload.old;
+      showToast('🔔 Order #' + (o?.id||'') + ' → ' + (o?.status||''));
+      loadAllData();
+    })
+    .subscribe();
+}
+
 function loadAllData() {
   // Stats
   document.getElementById('stat-orders').textContent = DEMO_ORDERS.length;
@@ -416,7 +429,28 @@ function loadAllData() {
 }
 
 // ── OVERVIEW ──
-function renderOverviewOrders() {
+async function renderOverviewOrders() {
+  // Load real orders from Supabase
+  try {
+    const { data } = await sb.from('cs_orders')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(5);
+    if (data && data.length) {
+      document.getElementById('overview-orders').innerHTML = data.map(o=>`
+        <tr>
+          <td><strong>${o.id}</strong></td>
+          <td>${o.customer_name||'—'}</td>
+          <td>TZS ${(o.total_amount||0).toLocaleString()}</td>
+          <td>${badge(o.status)}</td>
+        </tr>`).join('');
+      document.getElementById('stat-orders').textContent = data.length;
+      const rev = data.filter(o=>o.status==='delivered').reduce((s,o)=>s+(o.total_amount||0),0);
+      document.getElementById('stat-revenue').textContent = 'TZS ' + Math.round(rev*0.1).toLocaleString();
+      return;
+    }
+  } catch(e) {}
+  // Fallback demo
   document.getElementById('overview-orders').innerHTML = DEMO_ORDERS.slice(0,5).map(o=>`
     <tr><td><strong>${o.id}</strong></td><td>${o.customer}</td><td>TZS ${o.total.toLocaleString()}</td><td>${badge(o.status)}</td></tr>
   `).join('');
@@ -441,20 +475,37 @@ function renderCatBreakdown() {
 }
 
 // ── ORDERS TABLE ──
-function renderOrdersTable(data) {
-  const rows = (data || DEMO_ORDERS);
+async function renderOrdersTable(data) {
+  let rows = data;
+  if (!rows) {
+    try {
+      const { data: real } = await sb.from('cs_orders')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(100);
+      rows = real && real.length ? real : DEMO_ORDERS.map(o=>({
+        id:o.id, customer_name:o.customer, vendor:o.shop,
+        notes:o.items+' items', total_amount:o.total,
+        status:o.status, created_at:o.date, payment_method:'cash'
+      }));
+    } catch(e) { rows = DEMO_ORDERS; }
+  }
+  document.getElementById('orders-count').textContent = rows.length + ' orders total';
   document.getElementById('orders-table').innerHTML = rows.map(o=>`
     <tr>
-      <td><strong>${o.id}</strong></td>
-      <td>${o.customer}</td>
-      <td>${o.shop}</td>
-      <td>${o.items} item${o.items>1?'s':''}</td>
-      <td>TZS ${o.total.toLocaleString()}</td>
+      <td><strong>${o.id||o.id}</strong></td>
+      <td>${o.customer_name||o.customer||'—'}</td>
+      <td>${o.vendor||o.shop||'—'}</td>
+      <td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${o.notes||'—'}</td>
+      <td>TZS ${(o.total_amount||o.total||0).toLocaleString()}</td>
       <td>${badge(o.status)}</td>
-      <td>${o.date}</td>
-      <td><button class="action-btn" onclick="updateOrderStatus('${o.id}')">Update</button> <button class="action-btn danger">Cancel</button></td>
-    </tr>
-  `).join('');
+      <td>${(o.created_at||o.date||'').split('T')[0]}</td>
+      <td>
+        <select class="filter-select" style="padding:4px 8px;font-size:.75rem" onchange="adminUpdateStatus('${o.id}',this.value)">
+          ${['received','accepted','cooking','ready','on the way','delivered','cancelled'].map(s=>`<option ${s===o.status?'selected':''}>${s}</option>`).join('')}
+        </select>
+      </td>
+    </tr>`).join('');
 }
 
 function filterOrderStatus(val) {
@@ -510,6 +561,13 @@ function renderProductsTable() {
 }
 
 // ── HELPERS ──
+async function adminUpdateStatus(id, status) {
+  try {
+    await sb.from('cs_orders').update({ status, updated_at: new Date().toISOString() }).eq('id', id);
+    showToast('✅ Order #' + id + ' → ' + status);
+  } catch(e) { showToast('❌ ' + e.message); }
+}
+
 function badge(status) {
   const map = {pending:'badge-yellow',confirmed:'badge-blue',preparing:'badge-blue','on the way':'badge-purple',delivered:'badge-green',cancelled:'badge-red'};
   return `<span class="badge ${map[status]||'badge-blue'}">${status}</span>`;
