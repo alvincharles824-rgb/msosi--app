@@ -8,6 +8,12 @@
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet"/>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<link rel="manifest" href="manifest.json"/>
+<meta name="theme-color" content="#FF6B2C"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="Sokoni"/>
+<meta name="mobile-web-app-capable" content="yes"/>
 <style>
   :root {
     --bg: #0f0f0f;
@@ -162,6 +168,7 @@
   .footer { text-align: center; padding: 40px 20px; color: var(--muted); font-size: .85rem; }
   .footer span { color: var(--accent); }
 </style>
+<script src="payment.js"></script>
 </head>
 <body>
 
@@ -442,7 +449,7 @@ function openShop(shop) {
         <div class="product-desc">${p.desc}</div>
         <div class="product-price">TZS ${p.price.toLocaleString()}</div>
       </div>
-      <button class="add-btn" onclick="addToCart(${p.id},'${p.name}',${p.price},'${p.emoji}')">+</button>
+      <button class="add-btn" onclick="addToCart(${p.id},'${p.name}',${p.price},'${p.emoji}','${shop.name}','${shop.category}')">+</button>
     </div>
   `).join('');
   document.getElementById('shop-panel').classList.add('open');
@@ -451,10 +458,10 @@ function openShop(shop) {
 function closeShopPanel() { document.getElementById('shop-panel').classList.remove('open'); }
 
 // ── CART ──
-function addToCart(id, name, price, emoji) {
+function addToCart(id, name, price, emoji, shopName, category) {
   const ex = cart.find(i=>i.id===id);
   if (ex) ex.qty++;
-  else cart.push({ id, name, price, emoji, qty:1 });
+  else cart.push({ id, name, price, emoji, qty:1, shopName: shopName||'', category: category||'food' });
   updateCartUI();
   showToast(`${emoji} ${name} added!`);
 }
@@ -502,21 +509,81 @@ function toggleCart() {
 async function checkout() {
   if (!currentUser) { openModal('auth-modal'); return; }
   if (!cart.length) { showToast('Your cart is empty'); return; }
+
   const total = cart.reduce((s,i)=>s+i.price*i.qty, 0);
-  // Insert order into Supabase
-  const { error } = await sb.from('orders').insert({
-    user_id: currentUser.id,
-    items: cart,
+  const orderId = 'ORD-' + Date.now();
+  const now = new Date().toISOString();
+  const hour = new Date().getHours();
+  const shift = (hour >= 18 || hour < 6) ? 'night' : 'day';
+
+  // Get customer profile
+  let customerName = currentUser.email?.split('@')[0] || 'Customer';
+  let customerPhone = '';
+  try {
+    const { data: profile } = await sb.from('profiles')
+      .select('full_name, phone')
+      .eq('id', currentUser.id)
+      .single();
+    if (profile?.full_name) customerName = profile.full_name;
+    if (profile?.phone) customerPhone = profile.phone;
+  } catch(e) {}
+
+  const shopName = cart[0]?.shopName || 'Sokoni Shop';
+  const shopLat = cart[0]?.shopLat || -6.7924;
+  const shopLng = cart[0]?.shopLng || 39.2083;
+  const orderType = cart[0]?.category || 'food';
+  const itemsList = cart.map(i => i.name + ' x' + i.qty).join(', ');
+
+  // ── SINGLE SOURCE OF TRUTH: save to cs_orders ──
+  // This single insert triggers realtime updates in ALL portals:
+  // CS Dashboard, Admin, Vendor Portal, Driver App
+  const csOrder = {
+    id: orderId,
+    customer_name: customerName,
+    customer_phone: customerPhone,
+    vendor: shopName,
+    driver_name: '',
+    driver_phone: '',
+    order_type: orderType,
+    shift: shift,
     total_amount: total,
-    status: 'pending',
-    delivery_lat: userLat,
-    delivery_lng: userLng,
-  });
-  if (error) { showToast('Error: ' + error.message); return; }
+    payment_method: 'cash',
+    delivery_address: 'GPS: ' + userLat.toFixed(5) + ', ' + userLng.toFixed(5),
+    notes: itemsList,
+    status: 'received',
+    cancel_reason: null,
+    items: cart,
+    customer_lat: userLat,
+    customer_lng: userLng,
+    vendor_lat: shopLat,
+    vendor_lng: shopLng,
+    created_at: now,
+    updated_at: now,
+  };
+
+  const { error } = await sb.from('cs_orders').insert(csOrder);
+
+  if (error) {
+    // If not logged in to Supabase, save locally and show message
+    showToast('❌ ' + (error.message || 'Could not place order. Please log in.'));
+    console.error('Order error:', error);
+    return;
+  }
+
+  // ── Sync to Google Sheets ──
+  try {
+    fetch('https://script.google.com/macros/s/AKfycbzep9TaadQVSC9F4dD-tulz3isYPVAcvdLKyCiGvLDmRR3GKD1cI3WsPlQiYJZgRv36/exec', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'new_order', order: csOrder }),
+      mode: 'no-cors'
+    });
+  } catch(e) {}
+
   cart = [];
   updateCartUI();
   document.getElementById('cart-panel').classList.remove('open');
-  showToast('🎉 Order placed! You\'ll receive a confirmation shortly.');
+  showToast('🎉 Order #' + orderId + ' placed! Our team will contact you shortly.');
 }
 
 // ── AUTH ──
@@ -559,6 +626,66 @@ function showToast(msg, duration=3000) {
   t.classList.add('show');
   setTimeout(()=>t.classList.remove('show'), duration);
 }
+</script>
+
+<!-- PWA INSTALL BANNER -->
+<div id="pwa-banner" style="display:none;position:fixed;bottom:80px;left:16px;right:16px;background:#FF6B2C;color:#fff;border-radius:14px;padding:16px;z-index:9999;box-shadow:0 8px 32px #0008;align-items:center;gap:14px;flex-wrap:wrap;">
+  <div style="flex:1;min-width:180px">
+    <div style="font-weight:800;font-size:.95rem;margin-bottom:2px">📱 Install Sokoni App</div>
+    <div style="font-size:.78rem;opacity:.9">Add to your home screen for faster ordering</div>
+  </div>
+  <div style="display:flex;gap:8px">
+    <button onclick="installPWA()" style="background:#fff;color:#FF6B2C;border:none;border-radius:8px;padding:8px 16px;font-weight:800;font-size:.82rem;cursor:pointer">Install</button>
+    <button onclick="dismissPWA()" style="background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:700;font-size:.82rem;cursor:pointer">✕</button>
+  </div>
+</div>
+
+<script>
+// ── SERVICE WORKER ──
+if('serviceWorker' in navigator){
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js')
+      .then(reg => console.log('Sokoni SW registered:', reg.scope))
+      .catch(err => console.log('SW registration failed:', err));
+  });
+}
+
+// ── PWA INSTALL PROMPT ──
+let deferredPrompt = null;
+
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredPrompt = e;
+  // Show banner after 3 seconds
+  setTimeout(() => {
+    const banner = document.getElementById('pwa-banner');
+    if(banner && !localStorage.getItem('pwa-dismissed')) {
+      banner.style.display = 'flex';
+    }
+  }, 3000);
+});
+
+function installPWA() {
+  if(!deferredPrompt) return;
+  deferredPrompt.prompt();
+  deferredPrompt.userChoice.then(choice => {
+    if(choice.outcome === 'accepted') {
+      showToast('🎉 Sokoni installed on your device!');
+    }
+    deferredPrompt = null;
+    document.getElementById('pwa-banner').style.display = 'none';
+  });
+}
+
+function dismissPWA() {
+  document.getElementById('pwa-banner').style.display = 'none';
+  localStorage.setItem('pwa-dismissed', '1');
+}
+
+window.addEventListener('appinstalled', () => {
+  showToast('✅ Sokoni app installed!');
+  document.getElementById('pwa-banner').style.display = 'none';
+});
 </script>
 </body>
 </html>
