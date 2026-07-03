@@ -460,9 +460,19 @@ function calcDistance(lat1,lng1,lat2,lng2){
 // ── ORDERS ──
 async function loadOrders(){
   try{
-    const{data,error}=await sb.from('cs_orders').select('*').in('status',['ready','cooking','on the way']).order('created_at',{ascending:false});
-    myOrders=(error||!data||!data.length)?DEMO_ORDERS:data;
-  }catch{myOrders=DEMO_ORDERS;}
+    const{data,error}=await sb.from('cs_orders')
+      .select('*')
+      .in('status',['ready','cooking','on the way','accepted','received'])
+      .order('created_at',{ascending:false});
+    if(!error && data && data.length){
+      myOrders=data;
+    } else {
+      myOrders=DEMO_ORDERS;
+    }
+  }catch(e){
+    console.log('Load orders error:',e);
+    myOrders=DEMO_ORDERS;
+  }
 
   const count=myOrders.filter(o=>o.status==='ready').length;
   document.getElementById('orders-badge').textContent=count;
@@ -572,15 +582,34 @@ function updateProgressUI(status){
 
 async function doMainAction(){
   if(!activeOrder)return;
-  const nextMap={accepted:'cooking',cooking:'ready',ready:'on the way','on the way':'delivered'};
+  const nextMap={received:'accepted',accepted:'cooking',cooking:'ready',ready:'on the way','on the way':'delivered'};
   const next=nextMap[activeOrder.status];
   if(!next)return;
   activeOrder.status=next;
-  try{await sb.from('cs_orders').update({status:next,updated_at:new Date().toISOString()}).eq('id',activeOrder.id);}catch{}
+
+  // Update in Supabase — all portals see this instantly
+  try{
+    const updateData={status:next,updated_at:new Date().toISOString()};
+    if(next==='on the way'){
+      updateData.driver_name=currentDriver.name;
+      updateData.driver_phone=currentDriver.phone;
+    }
+    await sb.from('cs_orders').update(updateData).eq('id',activeOrder.id);
+  }catch(e){console.log('Update error:',e);}
+
   updateProgressUI(next);
   if(next==='on the way')updateRouteLine();
+
   if(next==='delivered'){
     showToast('🎉 Delivery complete! Great job!');
+    // Sync to Google Sheets
+    try{
+      fetch('https://script.google.com/macros/s/AKfycbzep9TaadQVSC9F4dD-tulz3isYPVAcvdLKyCiGvLDmRR3GKD1cI3WsPlQiYJZgRv36/exec',{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({action:'new_order',order:{...activeOrder,status:'delivered'}}),
+        mode:'no-cors'
+      });
+    }catch(e){}
     completedOrders.unshift({...activeOrder});
     setTimeout(()=>{
       activeOrder=null;
