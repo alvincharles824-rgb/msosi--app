@@ -2,982 +2,510 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Sokoni Admin — Dashboard</title>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Sokoni Admin</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet"/>
 <style>
-  :root {
-    --bg:#0a0a0a; --surface:#141414; --surface2:#1e1e1e; --border:#262626;
-    --accent:#FF6B2C; --accent2:#FFB347; --text:#f5f5f5; --muted:#777;
-    --green:#22c55e; --red:#ef4444; --blue:#3b82f6; --yellow:#f59e0b;
-    --purple:#a78bfa; --radius:12px; --font:'Plus Jakarta Sans',sans-serif;
-  }
-  *{box-sizing:border-box;margin:0;padding:0;}
-  body{background:var(--bg);color:var(--text);font-family:var(--font);display:flex;min-height:100vh;}
-
-  /* SIDEBAR */
-  .sidebar{width:230px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:20px 0;flex-shrink:0;position:fixed;top:0;left:0;bottom:0;}
-  .logo{font-family:'Instrument Serif',serif;font-size:1.5rem;color:var(--accent);font-style:italic;padding:0 20px 24px;border-bottom:1px solid var(--border);margin-bottom:16px;}
-  .logo span{display:block;font-family:var(--font);font-size:.72rem;font-style:normal;color:var(--muted);font-weight:600;letter-spacing:.08em;margin-top:2px;}
-  .nav-item{display:flex;align-items:center;gap:12px;padding:11px 20px;font-size:.9rem;font-weight:600;color:var(--muted);cursor:pointer;border-left:3px solid transparent;transition:all .2s;}
-  .nav-item:hover,.nav-item.active{color:var(--text);background:var(--surface2);border-left-color:var(--accent);}
-  .nav-item .icon{width:20px;text-align:center;}
-  .sidebar-footer{margin-top:auto;padding:16px 20px;border-top:1px solid var(--border);font-size:.82rem;color:var(--muted);}
-  .logout-btn{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:9px;color:var(--muted);font-family:var(--font);font-weight:600;cursor:pointer;margin-top:10px;}
-  .logout-btn:hover{border-color:var(--red);color:var(--red);}
-
-  /* MAIN */
-  .main{margin-left:230px;flex:1;display:flex;flex-direction:column;min-height:100vh;}
-  .topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:16px 28px;display:flex;align-items:center;justify-content:space-between;}
-  .topbar h1{font-size:1.2rem;font-weight:800;}
-  .topbar .meta{font-size:.82rem;color:var(--muted);}
-  .content{padding:28px;flex:1;}
-
-  /* STATS */
-  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:28px;}
-  .stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;}
-  .stat-label{font-size:.78rem;font-weight:700;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;margin-bottom:10px;}
-  .stat-val{font-size:2rem;font-weight:800;}
-  .stat-sub{font-size:.8rem;color:var(--muted);margin-top:4px;}
-  .stat-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:6px;}
-
-  /* TABLES */
-  .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:24px;}
-  .card-header{padding:18px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
-  .card-title{font-weight:800;font-size:1rem;}
-  table{width:100%;border-collapse:collapse;}
-  th{padding:12px 16px;text-align:left;font-size:.78rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--border);}
-  td{padding:13px 16px;font-size:.88rem;border-bottom:1px solid var(--border);}
-  tr:last-child td{border-bottom:none;}
-  tr:hover td{background:var(--surface2);}
-
-  /* BADGES */
-  .badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:999px;font-size:.75rem;font-weight:700;}
-  .badge-green{background:#16a34a22;color:var(--green);}
-  .badge-red{background:#dc262622;color:var(--red);}
-  .badge-yellow{background:#d9770622;color:var(--yellow);}
-  .badge-blue{background:#2563eb22;color:var(--blue);}
-  .badge-purple{background:#7c3aed22;color:var(--purple);}
-
-  /* ACTIONS */
-  .action-btn{background:none;border:1px solid var(--border);border-radius:6px;padding:5px 10px;color:var(--muted);font-family:var(--font);font-size:.78rem;cursor:pointer;transition:all .2s;}
-  .action-btn:hover{border-color:var(--accent);color:var(--accent);}
-  .action-btn.danger:hover{border-color:var(--red);color:var(--red);}
-
-  /* TABS */
-  .page-tabs{display:flex;gap:4px;background:var(--surface2);border-radius:10px;padding:4px;margin-bottom:24px;width:fit-content;}
-  .page-tab{padding:8px 18px;border-radius:8px;font-weight:600;font-size:.88rem;color:var(--muted);cursor:pointer;transition:all .2s;}
-  .page-tab.active{background:var(--accent);color:#fff;}
-
-  /* FILTERS */
-  .filter-row{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;}
-  .filter-select{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-family:var(--font);font-size:.85rem;outline:none;}
-  .filter-select:focus{border-color:var(--accent);}
-  .search-input{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 14px;color:var(--text);font-family:var(--font);font-size:.85rem;outline:none;min-width:220px;}
-  .search-input:focus{border-color:var(--accent);}
-
-  /* PAGE SECTIONS */
-  .page-section{display:none;}
-  .page-section.active{display:block;}
-
-  /* LOGIN */
-  .login-wrap{display:flex;align-items:center;justify-content:center;min-height:100vh;flex-direction:column;}
-  .login-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:40px;width:100%;max-width:380px;}
-  .login-card h2{font-size:1.5rem;margin-bottom:6px;}
-  .login-card p{color:var(--muted);font-size:.88rem;margin-bottom:24px;}
-  .form-group{margin-bottom:16px;}
-  .form-group label{display:block;font-size:.82rem;font-weight:600;color:var(--muted);margin-bottom:6px;}
-  .form-group input{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px;color:var(--text);font-family:var(--font);font-size:.9rem;outline:none;}
-  .form-group input:focus{border-color:var(--accent);}
-  .btn-primary{width:100%;background:var(--accent);border:none;border-radius:10px;padding:13px;color:#fff;font-family:var(--font);font-weight:800;font-size:.95rem;cursor:pointer;margin-top:4px;}
-  .btn-primary:hover{background:#e5571e;}
-
-  /* GRID STATS ROW */
-  .two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;}
-
-  /* TOAST */
-  .toast{position:fixed;bottom:24px;right:24px;background:var(--green);color:#fff;padding:12px 20px;border-radius:10px;font-weight:700;font-size:.88rem;z-index:9999;display:none;}
-  .toast.show{display:block;}
-
-  @media(max-width:900px){.stats{grid-template-columns:repeat(2,1fr);}.sidebar{width:60px;}.sidebar .nav-item span,.logo span,.sidebar-footer{display:none;}.main{margin-left:60px;}}
+:root{--bg:#0a0a0a;--surface:#141414;--surface2:#1e1e1e;--border:#262626;--accent:#FF6B2C;--text:#f5f5f5;--muted:#777;--green:#22c55e;--red:#ef4444;--blue:#3b82f6;--yellow:#f59e0b;--purple:#a78bfa;--cyan:#06b6d4;--radius:12px;--font:'Plus Jakarta Sans',sans-serif;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:var(--font);display:flex;min-height:100vh;}
+.sidebar{width:220px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:0;flex-shrink:0;position:fixed;top:0;left:0;bottom:0;z-index:50;}
+.logo{font-family:'Instrument Serif',serif;font-size:1.3rem;color:var(--accent);font-style:italic;padding:18px 20px;border-bottom:1px solid var(--border);}
+.logo span{display:block;font-family:var(--font);font-size:.65rem;font-style:normal;color:var(--muted);font-weight:700;letter-spacing:.08em;margin-top:2px;}
+.nav-item{display:flex;align-items:center;gap:10px;padding:11px 20px;font-size:.85rem;font-weight:600;color:var(--muted);cursor:pointer;border-left:3px solid transparent;transition:all .2s;}
+.nav-item:hover,.nav-item.active{color:var(--text);background:var(--surface2);border-left-color:var(--accent);}
+.sidebar-footer{margin-top:auto;padding:14px 20px;border-top:1px solid var(--border);}
+.btn-sm{background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:7px 12px;color:var(--muted);font-family:var(--font);font-weight:600;cursor:pointer;font-size:.78rem;width:100%;text-align:left;margin-bottom:6px;display:flex;align-items:center;gap:7px;}
+.btn-sm:hover{border-color:var(--accent);color:var(--accent);}
+.logout-btn{color:var(--red) !important;}
+.logout-btn:hover{border-color:var(--red) !important;}
+.main{margin-left:220px;flex:1;display:flex;flex-direction:column;min-height:100vh;}
+.topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:14px 24px;display:flex;align-items:center;justify-content:space-between;}
+.topbar h1{font-size:1.05rem;font-weight:800;}
+.content{padding:24px;flex:1;}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px;}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px;position:relative;}
+.stat-label{font-size:.72rem;font-weight:700;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;margin-bottom:7px;}
+.stat-val{font-size:1.8rem;font-weight:800;}
+.stat-sub{font-size:.74rem;color:var(--muted);margin-top:3px;}
+.live-indicator{position:absolute;top:12px;right:12px;width:7px;height:7px;border-radius:50%;background:var(--green);animation:pulse 1.5s infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:20px;}
+.card-header{padding:15px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;}
+.card-title{font-weight:800;font-size:.92rem;}
+table{width:100%;border-collapse:collapse;}
+th{padding:10px 14px;text-align:left;font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid var(--border);white-space:nowrap;}
+td{padding:11px 14px;font-size:.84rem;border-bottom:1px solid var(--border);}
+tr:last-child td{border-bottom:none;}
+tr:hover td{background:var(--surface2);}
+.badge{display:inline-flex;align-items:center;padding:3px 9px;border-radius:999px;font-size:.7rem;font-weight:700;}
+.badge-green{background:#16a34a22;color:var(--green);}
+.badge-red{background:#dc262622;color:var(--red);}
+.badge-yellow{background:#d9770622;color:var(--yellow);}
+.badge-blue{background:#2563eb22;color:var(--blue);}
+.badge-purple{background:#7c3aed22;color:var(--purple);}
+.badge-cyan{background:#0891b222;color:var(--cyan);}
+.badge-gray{background:#33333322;color:var(--muted);}
+.page-section{display:none;}
+.page-section.active{display:block;}
+.filter-row{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;}
+.fi{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-family:var(--font);font-size:.82rem;outline:none;}
+.fi:focus{border-color:var(--accent);}
+.status-sel{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:4px 8px;color:var(--text);font-family:var(--font);font-size:.75rem;outline:none;cursor:pointer;}
+.two-col{display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:20px;}
+.portal-link{display:flex;align-items:center;gap:10px;padding:13px 16px;border-radius:10px;background:var(--surface2);border:1px solid var(--border);text-decoration:none;color:var(--text);transition:all .2s;margin-bottom:10px;}
+.portal-link:hover{border-color:var(--accent);background:#1a0800;}
+.portal-icon{font-size:1.5rem;width:40px;height:40px;background:var(--surface);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.portal-info{flex:1;}
+.portal-name{font-weight:800;font-size:.9rem;margin-bottom:2px;}
+.portal-desc{font-size:.74rem;color:var(--muted);}
+.portal-arrow{color:var(--muted);font-size:1.1rem;}
+.live-feed-item{display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid #1a1a1a;}
+.feed-icon{font-size:1.2rem;flex-shrink:0;}
+.feed-info{flex:1;}
+.feed-title{font-size:.82rem;font-weight:700;}
+.feed-sub{font-size:.72rem;color:var(--muted);margin-top:1px;}
+.feed-time{font-size:.68rem;color:var(--muted);flex-shrink:0;}
+.login-wrap{display:flex;align-items:center;justify-content:center;min-height:100vh;width:100%;flex-direction:column;}
+.login-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:36px;width:100%;max-width:380px;}
+.login-card h2{font-size:1.3rem;margin-bottom:4px;}
+.login-card p{color:var(--muted);font-size:.84rem;margin-bottom:20px;}
+.fg{margin-bottom:13px;}
+.fg label{display:block;font-size:.76rem;font-weight:700;color:var(--muted);margin-bottom:4px;}
+.fg input{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:11px;color:var(--text);font-family:var(--font);font-size:.88rem;outline:none;}
+.fg input:focus{border-color:var(--accent);}
+.btn-primary{width:100%;background:var(--accent);border:none;border-radius:10px;padding:13px;color:#fff;font-family:var(--font);font-weight:800;font-size:.92rem;cursor:pointer;}
+.btn-primary:hover{background:#e5571e;}
+.hint-box{background:#FF6B2C22;border:1px solid #FF6B2C44;border-radius:8px;padding:10px 12px;margin-bottom:14px;font-size:.76rem;color:#FF6B2C;line-height:1.5;}
+.toast{position:fixed;bottom:20px;right:20px;background:var(--green);color:#fff;padding:10px 18px;border-radius:9px;font-weight:700;font-size:.82rem;z-index:9999;display:none;}
+.toast.show{display:block;}
+@media(max-width:900px){.stats{grid-template-columns:repeat(2,1fr);}.two-col{grid-template-columns:1fr;}.sidebar{width:56px;}.sidebar .nav-item span,.logo span,.sidebar-footer{display:none;}.main{margin-left:56px;}}
 </style>
 </head>
 <body>
 
-<!-- LOGIN PAGE -->
+<!-- LOGIN -->
 <div class="login-wrap" id="login-page">
   <div class="login-card">
     <h2>Admin Login</h2>
     <p>Sokoni platform administration</p>
-    <div class="form-group"><label>Admin Email</label><input type="email" id="adm-email" placeholder="admin@sokoni.co.tz" value="admin@sokoni.co.tz"/></div>
-    <div class="form-group"><label>Password</label><input type="password" id="adm-pass" placeholder="••••••••" value="admin123"/></div>
-    <div style="background:#FF6B2C22;border:1px solid #FF6B2C44;border-radius:8px;padding:10px;margin-bottom:14px;font-size:.78rem;color:#FF6B2C">
-      <strong>Demo credentials pre-filled</strong><br/>Email: admin@sokoni.co.tz · Password: admin123
-    </div>
+    <div class="hint-box">✅ Demo credentials pre-filled<br/>Email: admin@sokoni.co.tz · Password: admin123</div>
+    <div class="fg"><label>Email</label><input type="email" id="adm-email" value="admin@sokoni.co.tz"/></div>
+    <div class="fg"><label>Password</label><input type="password" id="adm-pass" value="admin123"/></div>
     <button class="btn-primary" onclick="adminLogin()">Access Dashboard →</button>
-    <div style="margin-top:16px;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:8px;padding:12px;font-size:.78rem">
-      <div style="color:#f59e0b;font-weight:700;margin-bottom:6px">🔑 Demo Login</div>
-      <div style="color:#888">Email: <span style="color:#f5f5f5">any email</span></div>
-      <div style="color:#888">Password: <span style="color:#FF6B2C;font-weight:700">admin123</span></div>
-    </div>
   </div>
 </div>
 
 <!-- DASHBOARD -->
 <div id="dashboard" style="display:none;width:100%">
-
-<!-- SIDEBAR -->
 <nav class="sidebar">
-  <div class="logo">Sokoni <span>ADMIN PANEL</span></div>
-  <div class="nav-item active" onclick="showSection('overview',this)"><span class="icon">📊</span><span>Overview</span></div>
-  <div class="nav-item" onclick="showSection('orders',this)"><span class="icon">📦</span><span>Orders</span></div>
-  <div class="nav-item" onclick="showSection('shops',this)"><span class="icon">🏪</span><span>Shops</span></div>
-  <div class="nav-item" onclick="showSection('users',this)"><span class="icon">👥</span><span>Users</span></div>
-  <div class="nav-item" onclick="showSection('products',this)"><span class="icon">🛍️</span><span>Products</span></div>
-  <div class="nav-item" onclick="showSection('analytics',this)"><span class="icon">📈</span><span>Analytics</span></div>
+  <div class="logo">Sokoni<span>ADMIN PANEL</span></div>
+  <div class="nav-item active" onclick="showSec('overview',this)">📊 <span>Overview</span></div>
+  <div class="nav-item" onclick="showSec('orders',this)">📦 <span>Live Orders</span></div>
+  <div class="nav-item" onclick="showSec('portals',this)">🔗 <span>Portals Access</span></div>
+  <div class="nav-item" onclick="showSec('shops',this)">🏪 <span>Shops</span></div>
+  <div class="nav-item" onclick="showSec('users',this)">👥 <span>Users</span></div>
+  <div class="nav-item" onclick="showSec('analytics',this)">📈 <span>Analytics</span></div>
   <div class="sidebar-footer">
-    <div>Signed in as <strong>Admin</strong></div>
-    <button class="logout-btn" onclick="adminLogout()">Sign Out</button>
+    <button class="btn-sm" onclick="window.open('https://alvincharles824-rgb.github.io/msosi--app/customer-service.html','_blank')">📋 <span>CS Dashboard</span></button>
+    <button class="btn-sm logout-btn" onclick="adminLogout()">🚪 <span>Sign Out</span></button>
   </div>
 </nav>
 
-<!-- MAIN -->
 <div class="main">
   <div class="topbar">
-    <div><h1 id="page-title">Overview</h1><div class="meta" id="page-meta">Last updated just now</div></div>
-    <div style="display:flex;gap:10px;align-items:center;">
-      <span id="live-time" style="color:var(--muted);font-size:.82rem"></span>
-      <button class="action-btn" onclick="refreshData()">🔄 Refresh</button>
+    <div><h1 id="page-title">Overview</h1></div>
+    <div style="display:flex;gap:10px;align-items:center">
+      <span id="live-clock" style="color:var(--muted);font-size:.78rem"></span>
+      <div style="display:flex;align-items:center;gap:5px;font-size:.75rem;color:var(--green);font-weight:700"><div class="live-indicator" style="position:static"></div>Live</div>
+      <button class="btn-sm" style="width:auto;margin-bottom:0" onclick="loadAll()">🔄 Refresh</button>
     </div>
   </div>
   <div class="content">
 
   <!-- OVERVIEW -->
-  <div class="page-section active" id="section-overview">
+  <div class="page-section active" id="sec-overview">
     <div class="stats">
-      <div class="stat-card"><div class="stat-label">Total Orders</div><div class="stat-val" id="stat-orders">—</div><div class="stat-sub">All time</div></div>
-      <div class="stat-card"><div class="stat-label">Active Shops</div><div class="stat-val" id="stat-shops">—</div><div class="stat-sub">Verified vendors</div></div>
-      <div class="stat-card"><div class="stat-label">Registered Users</div><div class="stat-val" id="stat-users">—</div><div class="stat-sub">Customers + vendors</div></div>
-      <div class="stat-card"><div class="stat-label">Revenue (TZS)</div><div class="stat-val" id="stat-revenue">—</div><div class="stat-sub">Platform commissions</div></div>
+      <div class="stat-card"><div class="live-indicator"></div><div class="stat-label">Total Orders</div><div class="stat-val" id="st-orders">—</div><div class="stat-sub">All time</div></div>
+      <div class="stat-card"><div class="live-indicator"></div><div class="stat-label">Active Now</div><div class="stat-val" style="color:var(--yellow)" id="st-active">—</div><div class="stat-sub">In progress</div></div>
+      <div class="stat-card"><div class="live-indicator"></div><div class="stat-label">Delivered Today</div><div class="stat-val" style="color:var(--green)" id="st-delivered">—</div><div class="stat-sub">Successful</div></div>
+      <div class="stat-card"><div class="live-indicator"></div><div class="stat-label">Revenue Today</div><div class="stat-val" id="st-revenue">—</div><div class="stat-sub">TZS platform commission</div></div>
     </div>
     <div class="two-col">
       <div class="card">
-        <div class="card-header"><div class="card-title">Recent Orders</div></div>
-        <table><thead><tr><th>Order</th><th>Customer</th><th>Amount</th><th>Status</th></tr></thead>
-        <tbody id="overview-orders"></tbody></table>
+        <div class="card-header"><div class="card-title">⚡ Live Order Feed</div><span style="color:var(--muted);font-size:.75rem" id="feed-count"></span></div>
+        <div id="live-feed" style="max-height:340px;overflow-y:auto"></div>
       </div>
-      <div class="card">
-        <div class="card-header"><div class="card-title">Category Breakdown</div></div>
-        <div style="padding:20px;" id="cat-breakdown"></div>
+      <div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">📊 By Category</div></div>
+          <div style="padding:16px"><canvas id="cat-chart" height="160"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">📦 Order Status</div></div>
+          <div style="padding:16px"><canvas id="status-chart" height="140"></canvas></div>
+        </div>
       </div>
     </div>
   </div>
 
-  <!-- ORDERS -->
-  <div class="page-section" id="section-orders">
+  <!-- LIVE ORDERS -->
+  <div class="page-section" id="sec-orders">
     <div class="filter-row">
-      <input class="search-input" placeholder="Search order ID, customer…" oninput="filterTable('orders-table',this.value)"/>
-      <select class="filter-select" onchange="filterOrderStatus(this.value)">
-        <option value="">All statuses</option>
-        <option>pending</option><option>confirmed</option><option>preparing</option><option>on the way</option><option>delivered</option><option>cancelled</option>
+      <input class="fi" style="flex:1;min-width:200px" placeholder="Search order, customer…" oninput="filterOrdersTable(this.value)"/>
+      <select class="fi" onchange="filterByStatus(this.value)">
+        <option value="">All Statuses</option>
+        <option>received</option><option>accepted</option><option>cooking</option>
+        <option>ready</option><option>on the way</option><option>delivered</option><option>cancelled</option>
+      </select>
+      <select class="fi" onchange="filterByType(this.value)">
+        <option value="">All Types</option>
+        <option>food</option><option>grocery</option><option>supermarket</option><option>pharmacy</option>
       </select>
     </div>
     <div class="card">
-      <div class="card-header"><div class="card-title">All Orders</div><span id="orders-count" style="color:var(--muted);font-size:.85rem"></span></div>
-      <table><thead><tr><th>#ID</th><th>Customer</th><th>Shop</th><th>Items</th><th>Total</th><th>Status</th><th>Date</th><th>Actions</th></tr></thead>
-      <tbody id="orders-table"></tbody></table>
+      <div class="card-header">
+        <div class="card-title">All Orders — Live from cs_orders</div>
+        <span style="color:var(--muted);font-size:.78rem" id="orders-count"></span>
+      </div>
+      <div style="overflow-x:auto">
+        <table>
+          <thead><tr>
+            <th>Order #</th><th>Customer</th><th>Phone</th><th>Vendor</th>
+            <th>Type</th><th>Shift</th><th>Amount</th><th>Payment</th>
+            <th>Driver</th><th>Status</th><th>Update</th><th>Time</th>
+          </tr></thead>
+          <tbody id="orders-tbl"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- PORTALS ACCESS -->
+  <div class="page-section" id="sec-portals">
+    <div style="margin-bottom:20px">
+      <div style="font-weight:800;font-size:1rem;margin-bottom:6px">All Portals — Admin Access</div>
+      <div style="font-size:.82rem;color:var(--muted)">Click any portal to open it in a new tab. All portals share the same Supabase database and update in real time.</div>
+    </div>
+    <a class="portal-link" href="https://alvincharles824-rgb.github.io/msosi--app/index.html" target="_blank">
+      <div class="portal-icon">🛒</div>
+      <div class="portal-info"><div class="portal-name">Customer App</div><div class="portal-desc">Browse shops, add to cart, checkout. Orders go to cs_orders table.</div></div>
+      <div class="portal-arrow">→</div>
+    </a>
+    <a class="portal-link" href="https://alvincharles824-rgb.github.io/msosi--app/customer-service.html" target="_blank">
+      <div class="portal-icon">📋</div>
+      <div class="portal-info"><div class="portal-name">Customer Service Dashboard</div><div class="portal-desc">Kanban board — move orders from Received → Delivered. Realtime. Login: cs123</div></div>
+      <div class="portal-arrow">→</div>
+    </a>
+    <a class="portal-link" href="https://alvincharles824-rgb.github.io/msosi--app/vendor.html" target="_blank">
+      <div class="portal-icon">🏪</div>
+      <div class="portal-info"><div class="portal-name">Vendor Portal</div><div class="portal-desc">Vendors see and manage their orders. Auto-loads from cs_orders. Login: vendor123</div></div>
+      <div class="portal-arrow">→</div>
+    </a>
+    <a class="portal-link" href="https://alvincharles824-rgb.github.io/msosi--app/driver.html" target="_blank">
+      <div class="portal-icon">🛵</div>
+      <div class="portal-info"><div class="portal-name">Driver App</div><div class="portal-desc">Map navigation, order pickup and delivery tracking. Login: driver123</div></div>
+      <div class="portal-arrow">→</div>
+    </a>
+    <a class="portal-link" href="https://docs.google.com/spreadsheets/d/1V95JmQkgaK3i04GFU_TIsqv4jfscx-3dO0tMzl1R4Cs" target="_blank">
+      <div class="portal-icon">📊</div>
+      <div class="portal-info"><div class="portal-name">Google Sheets Report</div><div class="portal-desc">Auto-filled daily. 4 tabs: Daily Report, Order Types, Cancelled, Driver Report.</div></div>
+      <div class="portal-arrow">→</div>
+    </a>
+    <a class="portal-link" href="https://ppzrofbkwzxbdahtcybu.supabase.co" target="_blank">
+      <div class="portal-icon">🗄️</div>
+      <div class="portal-info"><div class="portal-name">Supabase Database</div><div class="portal-desc">View all tables, cs_orders, real-time logs and authentication.</div></div>
+      <div class="portal-arrow">→</div>
+    </a>
+    <div style="margin-top:20px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px">
+      <div style="font-weight:800;margin-bottom:12px">🔄 Complete Order Flow</div>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:.82rem">
+        <span style="background:#FF6B2C22;color:var(--accent);padding:4px 10px;border-radius:6px;font-weight:700">🛒 Customer Order</span>
+        <span style="color:var(--muted)">→</span>
+        <span style="background:#2563eb22;color:var(--blue);padding:4px 10px;border-radius:6px;font-weight:700">📋 CS Dashboard</span>
+        <span style="color:var(--muted)">→</span>
+        <span style="background:#d9770622;color:var(--yellow);padding:4px 10px;border-radius:6px;font-weight:700">🏪 Vendor Portal</span>
+        <span style="color:var(--muted)">→</span>
+        <span style="background:#7c3aed22;color:var(--purple);padding:4px 10px;border-radius:6px;font-weight:700">🛵 Driver App</span>
+        <span style="color:var(--muted)">→</span>
+        <span style="background:#16a34a22;color:var(--green);padding:4px 10px;border-radius:6px;font-weight:700">📊 Google Sheets</span>
+      </div>
     </div>
   </div>
 
   <!-- SHOPS -->
-  <div class="page-section" id="section-shops">
-    <div class="filter-row">
-      <input class="search-input" placeholder="Search shop name…" oninput="filterTable('shops-table',this.value)"/>
-      <select class="filter-select">
-        <option>All categories</option><option>food</option><option>grocery</option><option>supermarket</option><option>pharmacy</option>
-      </select>
-    </div>
+  <div class="page-section" id="sec-shops">
     <div class="card">
       <div class="card-header"><div class="card-title">All Shops / Vendors</div></div>
-      <table><thead><tr><th>Shop</th><th>Category</th><th>Owner</th><th>Status</th><th>Orders</th><th>Rating</th><th>Actions</th></tr></thead>
-      <tbody id="shops-table"></tbody></table>
+      <table><thead><tr><th>Shop</th><th>Category</th><th>Status</th><th>Orders</th><th>Rating</th></tr></thead>
+      <tbody id="shops-tbl"></tbody></table>
     </div>
   </div>
 
   <!-- USERS -->
-  <div class="page-section" id="section-users">
-    <div class="filter-row">
-      <input class="search-input" placeholder="Search by name or email…" oninput="filterTable('users-table',this.value)"/>
-      <select class="filter-select">
-        <option>All roles</option><option>customer</option><option>vendor</option><option>admin</option>
-      </select>
-    </div>
+  <div class="page-section" id="sec-users">
     <div class="card">
-      <div class="card-header"><div class="card-title">All Users</div></div>
-      <table><thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Role</th><th>Joined</th><th>Status</th><th>Actions</th></tr></thead>
-      <tbody id="users-table"></tbody></table>
-    </div>
-  </div>
-
-  <!-- PRODUCTS -->
-  <div class="page-section" id="section-products">
-    <div class="filter-row">
-      <input class="search-input" placeholder="Search products…" oninput="filterTable('products-table',this.value)"/>
-    </div>
-    <div class="card">
-      <div class="card-header"><div class="card-title">All Products / Listings</div></div>
-      <table><thead><tr><th>Product</th><th>Shop</th><th>Category</th><th>Price (TZS)</th><th>Status</th><th>Actions</th></tr></thead>
-      <tbody id="products-table"></tbody></table>
+      <div class="card-header"><div class="card-title">All Users</div><span id="users-count" style="color:var(--muted);font-size:.8rem"></span></div>
+      <table><thead><tr><th>Email</th><th>Name</th><th>Phone</th><th>Role</th><th>Joined</th></tr></thead>
+      <tbody id="users-tbl"></tbody></table>
     </div>
   </div>
 
   <!-- ANALYTICS -->
-  <div class="page-section" id="section-analytics">
-
-    <!-- TOP STATS -->
-    <div class="stats" style="grid-template-columns:repeat(4,1fr)">
-      <div class="stat-card"><div class="stat-label">Today's Orders</div><div class="stat-val" style="color:var(--green)" id="a-today">—</div><div class="stat-sub" id="a-today-sub">Loading…</div></div>
-      <div class="stat-card"><div class="stat-label">Total Revenue</div><div class="stat-val" id="a-revenue">—</div><div class="stat-sub">All time delivered</div></div>
-      <div class="stat-card"><div class="stat-label">Avg Order Value</div><div class="stat-val" id="a-avg">—</div><div class="stat-sub">Per transaction</div></div>
-      <div class="stat-card"><div class="stat-label">Delivery Rate</div><div class="stat-val" style="color:var(--green)" id="a-rate">—</div><div class="stat-sub">Success rate</div></div>
+  <div class="page-section" id="sec-analytics">
+    <div class="stats" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px">
+      <div class="stat-card"><div class="stat-label">Total Orders</div><div class="stat-val" id="a-total">—</div></div>
+      <div class="stat-card"><div class="stat-label">Total Revenue</div><div class="stat-val" id="a-rev">—</div></div>
+      <div class="stat-card"><div class="stat-label">Avg Order</div><div class="stat-val" id="a-avg">—</div></div>
+      <div class="stat-card"><div class="stat-label">Success Rate</div><div class="stat-val" style="color:var(--green)" id="a-rate">—</div></div>
     </div>
-
-    <!-- DATE RANGE -->
-    <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;align-items:center">
-      <select class="filter-select" id="chart-range" onchange="loadAnalytics()">
-        <option value="7">Last 7 days</option>
-        <option value="14">Last 14 days</option>
-        <option value="30" selected>Last 30 days</option>
-        <option value="90">Last 90 days</option>
-      </select>
-      <button class="action-btn" onclick="loadAnalytics()" style="padding:8px 16px">🔄 Refresh Charts</button>
-      <span id="a-last-updated" style="color:var(--muted);font-size:.78rem;margin-left:auto"></span>
-    </div>
-
-    <!-- ROW 1: Orders Over Time + Category Pie -->
-    <div style="display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:16px">
-      <div class="card">
-        <div class="card-header"><div class="card-title">📈 Orders Over Time</div><span style="color:var(--muted);font-size:.8rem" id="orders-chart-label"></span></div>
-        <div style="padding:20px"><canvas id="ordersChart" height="220"></canvas></div>
-      </div>
-      <div class="card">
-        <div class="card-header"><div class="card-title">🍕 By Category</div></div>
-        <div style="padding:20px"><canvas id="categoryChart" height="220"></canvas></div>
-      </div>
-    </div>
-
-    <!-- ROW 2: Revenue Bar + Payment Methods -->
-    <div style="display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:16px">
-      <div class="card">
-        <div class="card-header"><div class="card-title">💰 Revenue (TZS)</div></div>
-        <div style="padding:20px"><canvas id="revenueChart" height="200"></canvas></div>
-      </div>
-      <div class="card">
-        <div class="card-header"><div class="card-title">💳 Payment Methods</div></div>
-        <div style="padding:20px"><canvas id="paymentChart" height="200"></canvas></div>
-      </div>
-    </div>
-
-    <!-- ROW 3: Top Vendors + Order Status -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
-      <div class="card">
-        <div class="card-header"><div class="card-title">🏆 Top Vendors</div></div>
-        <div style="padding:20px"><canvas id="vendorChart" height="220"></canvas></div>
-      </div>
-      <div class="card">
-        <div class="card-header"><div class="card-title">📦 Order Status Breakdown</div></div>
-        <div style="padding:20px"><canvas id="statusChart" height="220"></canvas></div>
-      </div>
+      <div class="card"><div class="card-header"><div class="card-title">📈 Orders Over Time</div></div><div style="padding:16px"><canvas id="orders-chart" height="200"></canvas></div></div>
+      <div class="card"><div class="card-header"><div class="card-title">💰 Revenue (TZS)</div></div><div style="padding:16px"><canvas id="rev-chart" height="200"></canvas></div></div>
     </div>
-
-    <!-- ROW 4: Shift Analysis -->
-    <div class="card" style="margin-bottom:16px">
-      <div class="card-header"><div class="card-title">☀️🌙 Day vs Night Shift</div></div>
-      <div style="padding:20px"><canvas id="shiftChart" height="120"></canvas></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px">
+      <div class="card"><div class="card-header"><div class="card-title">🍕 Category</div></div><div style="padding:16px"><canvas id="cat2-chart" height="180"></canvas></div></div>
+      <div class="card"><div class="card-header"><div class="card-title">💳 Payment</div></div><div style="padding:16px"><canvas id="pay-chart" height="180"></canvas></div></div>
+      <div class="card"><div class="card-header"><div class="card-title">☀️🌙 Shift</div></div><div style="padding:16px"><canvas id="shift-chart" height="180"></canvas></div></div>
     </div>
-
-    <!-- ROW 5: Live Activity Feed -->
-    <div class="card">
-      <div class="card-header">
-        <div class="card-title">⚡ Live Activity Feed</div>
-        <div style="display:flex;align-items:center;gap:6px;font-size:.78rem;color:var(--green);font-weight:700">
-          <div style="width:7px;height:7px;border-radius:50%;background:var(--green);animation:pulse 1.5s infinite"></div>
-          Real-time
-        </div>
-      </div>
-      <div id="live-feed" style="max-height:260px;overflow-y:auto"></div>
-    </div>
-
   </div>
 
-  </div><!-- end content -->
-</div><!-- end main -->
-</div><!-- end dashboard -->
+  </div>
+</div>
+</div>
 
 <div class="toast" id="toast"></div>
 
 <script>
-const SUPABASE_URL = 'https://ppzrofbkwzxbdahtcybu.supabase.co';
-const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBwenJvZmJrd3p4YmRhaHRjeWJ1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjQzMDcsImV4cCI6MjA5NzkwMDMwN30.kH73nfcpnLIsoXohYuGGtmfnf57Y3QGI0J5ipIYIGHY';
-const ADMIN_EMAILS = ['admin@sokoni.co.tz']; // add admin emails here
-const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+const SB_URL='https://ppzrofbkwzxbdahtcybu.supabase.co';
+const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBwenJvZmJrd3p4YmRhaHRjeWJ1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMjQzMDcsImV4cCI6MjA5NzkwMDMwN30.kH73nfcpnLIsoXohYuGGtmfnf57Y3QGI0J5ipIYIGHY';
+const sb=supabase.createClient(SB_URL,SB_KEY);
+Chart.defaults.color='#777';Chart.defaults.borderColor='#262626';Chart.defaults.font.family="'Plus Jakarta Sans',sans-serif";
 
-// ── DEMO DATA ──
-const DEMO_ORDERS = [
-  {id:'ORD-001',customer:'Aisha Mohammed',shop:'Mama Africa Kitchen',items:2,total:9000,status:'delivered',date:'2025-06-20'},
-  {id:'ORD-002',customer:'John Msigwa',shop:'FreshMart Superstore',items:5,total:24700,status:'on the way',date:'2025-06-21'},
-  {id:'ORD-003',customer:'Fatuma Salim',shop:'Dawa Plus Pharmacy',items:1,total:1200,status:'pending',date:'2025-06-21'},
-  {id:'ORD-004',customer:'Carlos Mbeki',shop:'Green Leaf Groceries',items:4,total:5500,status:'confirmed',date:'2025-06-22'},
-  {id:'ORD-005',customer:'Raha Juma',shop:'Zanzibar Bites',items:3,total:14000,status:'preparing',date:'2025-06-22'},
-  {id:'ORD-006',customer:'Amani Osei',shop:'City Pharmacy',items:2,total:7000,status:'cancelled',date:'2025-06-23'},
-];
-const DEMO_SHOPS = [
-  {name:'Mama Africa Kitchen',category:'food',owner:'Mama Fatuma',status:'active',orders:148,rating:4.8},
-  {name:'FreshMart Superstore',category:'supermarket',owner:'David Kimani',status:'active',orders:97,rating:4.5},
-  {name:'Dawa Plus Pharmacy',category:'pharmacy',owner:'Dr. Abubakar',status:'active',orders:63,rating:4.9},
-  {name:'Green Leaf Groceries',category:'grocery',owner:'Agnes Mwangi',status:'active',orders:212,rating:4.6},
-  {name:'Zanzibar Bites',category:'food',owner:'Omar Hassan',status:'active',orders:88,rating:4.7},
-  {name:'City Pharmacy',category:'pharmacy',owner:'Pendo Mushi',status:'pending',orders:0,rating:0},
-];
-const DEMO_USERS = [
-  {name:'Aisha Mohammed',email:'aisha@email.com',phone:'+255 744 123 456',role:'customer',joined:'2025-05-10',status:'active'},
-  {name:'Mama Fatuma',email:'fatuma@mamaafrica.co.tz',phone:'+255 712 999 001',role:'vendor',joined:'2025-04-01',status:'active'},
-  {name:'John Msigwa',email:'john@email.com',phone:'+255 754 000 111',role:'customer',joined:'2025-06-15',status:'active'},
-  {name:'Dr. Abubakar',email:'abubakar@dawa.com',phone:'+255 765 888 222',role:'vendor',joined:'2025-03-20',status:'active'},
-  {name:'Carlos Mbeki',email:'carlos@email.com',phone:'+255 784 333 444',role:'customer',joined:'2025-06-18',status:'active'},
-];
-const DEMO_PRODUCTS = [
-  {name:'Ugali & Nyama',shop:'Mama Africa Kitchen',category:'food',price:5500,status:'available'},
-  {name:'Pilau (Full)',shop:'Mama Africa Kitchen',category:'food',price:6000,status:'available'},
-  {name:'Unga Sembe 2kg',shop:'FreshMart Superstore',category:'supermarket',price:4200,status:'available'},
-  {name:'Panadol Advance',shop:'Dawa Plus Pharmacy',category:'pharmacy',price:1200,status:'available'},
-  {name:'Tomatoes 1kg',shop:'Green Leaf Groceries',category:'grocery',price:1500,status:'available'},
-  {name:'Biryani Chicken',shop:'Zanzibar Bites',category:'food',price:8000,status:'out of stock'},
+let allOrders=[],charts={};
+
+const DEMO_SHOPS=[
+  {name:'Mama Africa Kitchen',category:'food',status:'active',total_orders:148,rating:4.8},
+  {name:'FreshMart Superstore',category:'supermarket',status:'active',total_orders:97,rating:4.5},
+  {name:'Dawa Plus Pharmacy',category:'pharmacy',status:'active',total_orders:63,rating:4.9},
+  {name:'Green Leaf Groceries',category:'grocery',status:'active',total_orders:212,rating:4.6},
+  {name:'Zanzibar Bites',category:'food',status:'active',total_orders:88,rating:4.7},
 ];
 
-// ── AUTH ──
-window.addEventListener('DOMContentLoaded', async () => {
-  const { data: { session } } = await sb.auth.getSession();
-  if (session && ADMIN_EMAILS.includes(session.user.email)) {
-    showDashboard();
-  }
-  // For demo: allow local login bypass
+window.addEventListener('DOMContentLoaded',async()=>{
+  const{data:{session}}=await sb.auth.getSession();
+  if(session&&session.user.email==='admin@sokoni.co.tz'){showDashboard();}
   startClock();
 });
 
-async function adminLogin() {
-  const email = document.getElementById('adm-email').value;
-  const pass = document.getElementById('adm-pass').value;
-  // Demo bypass
-  // Demo bypass — any email + admin123 works
-  if (pass === 'admin123') {
-    showDashboard(); return;
-  }
-  const { error } = await sb.auth.signInWithPassword({ email, password: pass });
-  if (error) { showToast('❌ ' + error.message); return; }
-  if (!ADMIN_EMAILS.includes(email)) {
-    await sb.auth.signOut();
-    showToast('❌ Not an admin account');
-    return;
-  }
+async function adminLogin(){
+  const email=document.getElementById('adm-email').value;
+  const pass=document.getElementById('adm-pass').value;
+  if(email==='admin@sokoni.co.tz'&&pass==='admin123'){showDashboard();return;}
+  const{error}=await sb.auth.signInWithPassword({email,password:pass});
+  if(error){showToast('❌ '+error.message);return;}
   showDashboard();
 }
+function adminLogout(){sb.auth.signOut();document.getElementById('dashboard').style.display='none';document.getElementById('login-page').style.display='flex';}
 
-function adminLogout() {
-  sb.auth.signOut();
-  document.getElementById('dashboard').style.display = 'none';
-  document.getElementById('login-page').style.display = 'flex';
+function showDashboard(){
+  document.getElementById('login-page').style.display='none';
+  document.getElementById('dashboard').style.display='flex';
+  loadAll();
+  // Realtime subscription
+  sb.channel('admin-live')
+    .on('postgres_changes',{event:'*',schema:'public',table:'cs_orders'},payload=>{
+      const o=payload.new||{};
+      showToast('🔔 #'+(o.id||'')+ ' → '+(o.status||'updated'));
+      loadAll();
+    }).subscribe();
 }
 
-function showDashboard() {
-  document.getElementById('login-page').style.display = 'none';
-  document.getElementById('dashboard').style.display = 'flex';
-  loadAllData();
-  subscribeRealtime();
+async function loadAll(){
+  await loadOrders();
+  loadShops();
+  loadUsers();
 }
 
-// ── LOAD DATA ──
-// ── REALTIME: Admin sees ALL changes live ──
-function subscribeRealtime() {
-  sb.channel('admin-realtime')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'cs_orders' }, payload => {
-      // Flash notification
-      const o = payload.new || payload.old;
-      showToast('🔔 Order #' + (o?.id||'') + ' → ' + (o?.status||''));
-      loadAllData();
-    })
-    .subscribe();
+async function loadOrders(){
+  try{
+    const{data,error}=await sb.from('cs_orders').select('*').order('created_at',{ascending:false}).limit(200);
+    allOrders=(!error&&data&&data.length)?data:generateDemoOrders();
+  }catch(e){allOrders=generateDemoOrders();}
+
+  const active=allOrders.filter(o=>!['delivered','cancelled'].includes(o.status)).length;
+  const todayDelivered=allOrders.filter(o=>o.status==='delivered'&&o.created_at?.startsWith(new Date().toISOString().split('T')[0])).length;
+  const todayRev=allOrders.filter(o=>o.status==='delivered').reduce((s,o)=>s+(o.total_amount||0),0);
+
+  document.getElementById('st-orders').textContent=allOrders.length;
+  document.getElementById('st-active').textContent=active;
+  document.getElementById('st-delivered').textContent=todayDelivered;
+  document.getElementById('st-revenue').textContent='TZS '+Math.round(todayRev*0.1).toLocaleString();
+
+  renderLiveFeed(allOrders.slice(0,12));
+  renderOrdersTable(allOrders);
+  renderCharts(allOrders);
+  renderAnalytics(allOrders);
+  document.getElementById('orders-count').textContent=allOrders.length+' orders';
+  document.getElementById('feed-count').textContent=allOrders.length+' total';
 }
 
-function loadAllData() {
-  // Stats
-  document.getElementById('stat-orders').textContent = DEMO_ORDERS.length;
-  document.getElementById('stat-shops').textContent = DEMO_SHOPS.filter(s=>s.status==='active').length;
-  document.getElementById('stat-users').textContent = DEMO_USERS.length;
-  const rev = DEMO_ORDERS.filter(o=>o.status==='delivered').reduce((s,o)=>s+o.total*0.10,0);
-  document.getElementById('stat-revenue').textContent = 'TZS '+Math.round(rev).toLocaleString();
-
-  renderOverviewOrders();
-  renderCatBreakdown();
-  renderOrdersTable();
-  renderShopsTable();
-  renderUsersTable();
-  renderProductsTable();
-  document.getElementById('orders-count').textContent = DEMO_ORDERS.length + ' orders total';
+function generateDemoOrders(){
+  const vendors=['Mama Africa Kitchen','FreshMart Superstore','Dawa Plus','Green Leaf','Zanzibar Bites'];
+  const types=['food','supermarket','pharmacy','grocery','food'];
+  const statuses=['received','accepted','cooking','ready','on the way','delivered','cancelled'];
+  const payments=['mpesa','cash','tigo_pesa','airtel_money'];
+  return Array.from({length:15},(_,i)=>({
+    id:'ORD-'+(100+i),customer_name:'Customer '+(i+1),customer_phone:'+255744'+(100000+i),
+    vendor:vendors[i%5],order_type:types[i%5],shift:i%3===0?'night':'day',
+    total_amount:Math.floor(Math.random()*15000)+2000,payment_method:payments[i%4],
+    driver_name:i%3===0?'Juma Hassan':'',status:statuses[i%7],
+    notes:'Order items',created_at:new Date(Date.now()-i*3600000).toISOString()
+  }));
 }
 
-// ── OVERVIEW ──
-async function renderOverviewOrders() {
-  // Load real orders from Supabase
-  try {
-    const { data } = await sb.from('cs_orders')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(5);
-    if (data && data.length) {
-      document.getElementById('overview-orders').innerHTML = data.map(o=>`
-        <tr>
-          <td><strong>${o.id}</strong></td>
-          <td>${o.customer_name||'—'}</td>
-          <td>TZS ${(o.total_amount||0).toLocaleString()}</td>
-          <td>${badge(o.status)}</td>
-        </tr>`).join('');
-      document.getElementById('stat-orders').textContent = data.length;
-      const rev = data.filter(o=>o.status==='delivered').reduce((s,o)=>s+(o.total_amount||0),0);
-      document.getElementById('stat-revenue').textContent = 'TZS ' + Math.round(rev*0.1).toLocaleString();
-      return;
-    }
-  } catch(e) {}
-  // Fallback demo
-  document.getElementById('overview-orders').innerHTML = DEMO_ORDERS.slice(0,5).map(o=>`
-    <tr><td><strong>${o.id}</strong></td><td>${o.customer}</td><td>TZS ${o.total.toLocaleString()}</td><td>${badge(o.status)}</td></tr>
-  `).join('');
-}
+const STATUS_COLORS={received:'var(--muted)',accepted:'var(--blue)',cooking:'var(--yellow)',ready:'var(--cyan)','on the way':'var(--purple)',delivered:'var(--green)',cancelled:'var(--red)'};
+const STATUS_BADGES={received:'badge-gray',accepted:'badge-blue',cooking:'badge-yellow',ready:'badge-cyan','on the way':'badge-purple',delivered:'badge-green',cancelled:'badge-red'};
+const TYPE_ICONS={food:'🍔',grocery:'🥦',supermarket:'🏪',pharmacy:'💊'};
 
-function renderCatBreakdown() {
-  const cats = ['food','grocery','supermarket','pharmacy'];
-  const colors = {'food':'var(--yellow)','grocery':'var(--green)','supermarket':'var(--purple)','pharmacy':'var(--blue)'};
-  document.getElementById('cat-breakdown').innerHTML = cats.map(c=>{
-    const count = DEMO_SHOPS.filter(s=>s.category===c).length;
-    const pct = Math.round(count/DEMO_SHOPS.length*100);
-    return `<div style="margin-bottom:14px">
-      <div style="display:flex;justify-content:space-between;margin-bottom:5px;font-size:.85rem">
-        <span style="font-weight:600;text-transform:capitalize">${c}</span>
-        <span style="color:var(--muted)">${count} shops (${pct}%)</span>
+function renderLiveFeed(orders){
+  document.getElementById('live-feed').innerHTML=orders.map(o=>`
+    <div class="live-feed-item">
+      <div class="feed-icon">${TYPE_ICONS[o.order_type]||'📦'}</div>
+      <div class="feed-info">
+        <div class="feed-title">#${o.id} — ${o.customer_name||'—'} → ${o.vendor||'—'}</div>
+        <div class="feed-sub">TZS ${(o.total_amount||0).toLocaleString()} · ${o.payment_method||'cash'} · ${o.driver_name||'No driver'}</div>
       </div>
-      <div style="background:var(--surface2);border-radius:999px;height:6px">
-        <div style="background:${colors[c]};width:${pct}%;height:100%;border-radius:999px"></div>
-      </div>
-    </div>`;
-  }).join('');
-}
-
-// ── ORDERS TABLE ──
-async function renderOrdersTable(data) {
-  let rows = data;
-  if (!rows) {
-    try {
-      const { data: real } = await sb.from('cs_orders')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(100);
-      rows = real && real.length ? real : DEMO_ORDERS.map(o=>({
-        id:o.id, customer_name:o.customer, vendor:o.shop,
-        notes:o.items+' items', total_amount:o.total,
-        status:o.status, created_at:o.date, payment_method:'cash'
-      }));
-    } catch(e) { rows = DEMO_ORDERS; }
-  }
-  document.getElementById('orders-count').textContent = rows.length + ' orders total';
-  document.getElementById('orders-table').innerHTML = rows.map(o=>`
-    <tr>
-      <td><strong>${o.id||o.id}</strong></td>
-      <td>${o.customer_name||o.customer||'—'}</td>
-      <td>${o.vendor||o.shop||'—'}</td>
-      <td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${o.notes||'—'}</td>
-      <td>TZS ${(o.total_amount||o.total||0).toLocaleString()}</td>
-      <td>${badge(o.status)}</td>
-      <td>${(o.created_at||o.date||'').split('T')[0]}</td>
-      <td>
-        <select class="filter-select" style="padding:4px 8px;font-size:.75rem" onchange="adminUpdateStatus('${o.id}',this.value)">
-          ${['received','accepted','cooking','ready','on the way','delivered','cancelled'].map(s=>`<option ${s===o.status?'selected':''}>${s}</option>`).join('')}
-        </select>
-      </td>
-    </tr>`).join('');
-}
-
-function filterOrderStatus(val) {
-  renderOrdersTable(val ? DEMO_ORDERS.filter(o=>o.status===val) : DEMO_ORDERS);
-}
-
-// ── SHOPS TABLE ──
-function renderShopsTable() {
-  document.getElementById('shops-table').innerHTML = DEMO_SHOPS.map(s=>`
-    <tr>
-      <td><strong>${s.name}</strong></td>
-      <td><span class="badge badge-${catColor(s.category)}">${s.category}</span></td>
-      <td>${s.owner}</td>
-      <td>${s.status==='active'?'<span class="badge badge-green">Active</span>':'<span class="badge badge-yellow">Pending</span>'}</td>
-      <td>${s.orders}</td>
-      <td>${s.rating>0?'⭐ '+s.rating:'—'}</td>
-      <td>
-        <button class="action-btn">Edit</button>
-        <button class="action-btn" onclick="toggleShopStatus(this)">Suspend</button>
-        <button class="action-btn danger">Remove</button>
-      </td>
-    </tr>
-  `).join('');
-}
-
-// ── USERS TABLE ──
-function renderUsersTable() {
-  document.getElementById('users-table').innerHTML = DEMO_USERS.map(u=>`
-    <tr>
-      <td><strong>${u.name}</strong></td>
-      <td>${u.email}</td>
-      <td>${u.phone}</td>
-      <td><span class="badge ${u.role==='vendor'?'badge-purple':u.role==='admin'?'badge-red':'badge-blue'}">${u.role}</span></td>
-      <td>${u.joined}</td>
-      <td><span class="badge badge-green">Active</span></td>
-      <td><button class="action-btn">View</button> <button class="action-btn danger">Suspend</button></td>
-    </tr>
-  `).join('');
-}
-
-// ── PRODUCTS TABLE ──
-function renderProductsTable() {
-  document.getElementById('products-table').innerHTML = DEMO_PRODUCTS.map(p=>`
-    <tr>
-      <td><strong>${p.name}</strong></td>
-      <td>${p.shop}</td>
-      <td><span class="badge badge-${catColor(p.category)}">${p.category}</span></td>
-      <td>${p.price.toLocaleString()}</td>
-      <td>${p.status==='available'?'<span class="badge badge-green">Available</span>':'<span class="badge badge-red">Out of stock</span>'}</td>
-      <td><button class="action-btn">Edit</button> <button class="action-btn danger">Remove</button></td>
-    </tr>
-  `).join('');
-}
-
-// ── HELPERS ──
-async function adminUpdateStatus(id, status) {
-  try {
-    await sb.from('cs_orders').update({ status, updated_at: new Date().toISOString() }).eq('id', id);
-    showToast('✅ Order #' + id + ' → ' + status);
-  } catch(e) { showToast('❌ ' + e.message); }
-}
-
-function badge(status) {
-  const map = {pending:'badge-yellow',confirmed:'badge-blue',preparing:'badge-blue','on the way':'badge-purple',delivered:'badge-green',cancelled:'badge-red'};
-  return `<span class="badge ${map[status]||'badge-blue'}">${status}</span>`;
-}
-function catColor(c) { return {food:'yellow',grocery:'green',supermarket:'purple',pharmacy:'blue'}[c]||'blue'; }
-
-function filterTable(id, val) {
-  const rows = document.getElementById(id)?.querySelectorAll('tr');
-  rows?.forEach(r => {
-    r.style.display = r.textContent.toLowerCase().includes(val.toLowerCase()) ? '' : 'none';
-  });
-}
-
-function showSection(name, el) {
-  document.querySelectorAll('.page-section').forEach(s=>s.classList.remove('active'));
-  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
-  document.getElementById('section-'+name).classList.add('active');
-  el.classList.add('active');
-  document.getElementById('page-title').textContent = el.querySelector('span:last-child')?.textContent||name;
-}
-
-function startClock() {
-  setInterval(()=>{
-    document.getElementById('live-time').textContent = new Date().toLocaleTimeString('en-TZ',{hour:'2-digit',minute:'2-digit'});
-  },1000);
-}
-
-function refreshData() { loadAllData(); showToast('✅ Data refreshed'); }
-
-function updateOrderStatus(id) { showToast('Order '+id+' status updated'); }
-function toggleShopStatus(btn) { btn.textContent = btn.textContent==='Suspend'?'Activate':'Suspend'; showToast('Shop status updated'); }
-
-function showToast(msg) {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.classList.add('show');
-  setTimeout(()=>t.classList.remove('show'), 3000);
-}
-
-// ══════════════════════════════════════════════
-// LIVE ANALYTICS
-// ══════════════════════════════════════════════
-
-let charts = {};
-
-// Chart.js global defaults for dark theme
-Chart.defaults.color = '#777';
-Chart.defaults.borderColor = '#262626';
-Chart.defaults.font.family = "'Plus Jakarta Sans', sans-serif";
-
-async function loadAnalytics() {
-  const days = parseInt(document.getElementById('chart-range')?.value || 30);
-  const since = new Date();
-  since.setDate(since.getDate() - days);
-  const sinceStr = since.toISOString();
-
-  document.getElementById('a-last-updated').textContent = 'Updating…';
-
-  // Fetch from Supabase
-  let orders = [];
-  let csOrders = [];
-  try {
-    const { data: o } = await sb.from('cs_orders')
-      .select('*')
-      .gte('created_at', sinceStr)
-      .order('created_at', { ascending: true });
-    csOrders = o || [];
-
-    const { data: o2 } = await sb.from('orders')
-      .select('*')
-      .gte('created_at', sinceStr);
-    orders = o2 || [];
-  } catch(e) {}
-
-  // Combine both order sources
-  const allOrders = [...csOrders, ...orders];
-
-  // Fallback to demo if empty
-  const data = allOrders.length > 0 ? allOrders : generateDemoData(days);
-
-  updateAnalyticsStats(data);
-  renderOrdersChart(data, days);
-  renderCategoryChart(data);
-  renderRevenueChart(data, days);
-  renderPaymentChart(data);
-  renderVendorChart(data);
-  renderStatusChart(data);
-  renderShiftChart(data);
-  renderLiveFeed(data);
-
-  document.getElementById('a-last-updated').textContent =
-    'Updated ' + new Date().toLocaleTimeString('en-TZ', {hour:'2-digit', minute:'2-digit'});
-}
-
-// ── DEMO DATA GENERATOR ──
-function generateDemoData(days) {
-  const data = [];
-  const vendors = ['Mama Africa Kitchen','FreshMart Superstore','Dawa Plus Pharmacy','Green Leaf Groceries','Zanzibar Bites'];
-  const types = ['food','food','food','grocery','supermarket','pharmacy'];
-  const statuses = ['delivered','delivered','delivered','delivered','cancelled','on the way'];
-  const payments = ['mpesa','cash','tigo_pesa','airtel_money','mpesa','cash'];
-  const shifts = ['day','day','night'];
-  for (let i = 0; i < days * 3; i++) {
-    const d = new Date();
-    d.setDate(d.getDate() - Math.floor(Math.random() * days));
-    data.push({
-      id: 'ORD-' + (100 + i),
-      vendor: vendors[Math.floor(Math.random() * vendors.length)],
-      order_type: types[Math.floor(Math.random() * types.length)],
-      status: statuses[Math.floor(Math.random() * statuses.length)],
-      payment_method: payments[Math.floor(Math.random() * payments.length)],
-      shift: shifts[Math.floor(Math.random() * shifts.length)],
-      total_amount: Math.floor(Math.random() * 20000) + 2000,
-      created_at: d.toISOString(),
-    });
-  }
-  return data;
-}
-
-// ── STATS ──
-function updateAnalyticsStats(data) {
-  const today = new Date().toISOString().split('T')[0];
-  const todayOrders = data.filter(o => o.created_at?.startsWith(today));
-  const delivered = data.filter(o => o.status === 'delivered');
-  const totalRev = delivered.reduce((s,o) => s + (o.total_amount||0), 0);
-  const avg = data.length ? Math.round(data.reduce((s,o) => s + (o.total_amount||0), 0) / data.length) : 0;
-  const rate = data.length ? Math.round(delivered.length / data.length * 100) : 0;
-
-  document.getElementById('a-today').textContent = todayOrders.length;
-  document.getElementById('a-today-sub').textContent = `${data.length} total in range`;
-  document.getElementById('a-revenue').textContent = 'TZS ' + totalRev.toLocaleString();
-  document.getElementById('a-avg').textContent = 'TZS ' + avg.toLocaleString();
-  document.getElementById('a-rate').textContent = rate + '%';
-}
-
-// ── ORDERS OVER TIME ──
-function renderOrdersChart(data, days) {
-  const labels = [];
-  const counts = [];
-  for (let i = days - 1; i >= 0; i--) {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
-    const dateStr = d.toISOString().split('T')[0];
-    const label = d.toLocaleDateString('en-TZ', {month:'short', day:'numeric'});
-    labels.push(label);
-    counts.push(data.filter(o => o.created_at?.startsWith(dateStr)).length);
-  }
-  document.getElementById('orders-chart-label').textContent = `${data.length} orders`;
-  destroyChart('ordersChart');
-  charts.orders = new Chart(document.getElementById('ordersChart'), {
-    type: 'line',
-    data: {
-      labels,
-      datasets: [{
-        label: 'Orders',
-        data: counts,
-        borderColor: '#FF6B2C',
-        backgroundColor: 'rgba(255,107,44,0.08)',
-        borderWidth: 2.5,
-        fill: true,
-        tension: 0.4,
-        pointBackgroundColor: '#FF6B2C',
-        pointRadius: 3,
-      }]
-    },
-    options: {
-      responsive: true,
-      plugins: { legend: { display: false } },
-      scales: {
-        x: { grid: { color: '#1a1a1a' }, ticks: { maxTicksLimit: 8 } },
-        y: { grid: { color: '#1a1a1a' }, beginAtZero: true, ticks: { stepSize: 1 } }
-      }
-    }
-  });
-}
-
-// ── CATEGORY DOUGHNUT ──
-function renderCategoryChart(data) {
-  const cats = {food:0, grocery:0, supermarket:0, pharmacy:0};
-  data.forEach(o => { if(cats[o.order_type] !== undefined) cats[o.order_type]++; });
-  destroyChart('categoryChart');
-  charts.category = new Chart(document.getElementById('categoryChart'), {
-    type: 'doughnut',
-    data: {
-      labels: ['🍔 Food','🥦 Grocery','🏪 Supermarket','💊 Pharmacy'],
-      datasets: [{
-        data: Object.values(cats),
-        backgroundColor: ['#f59e0b','#22c55e','#a78bfa','#60a5fa'],
-        borderColor: '#141414',
-        borderWidth: 3,
-      }]
-    },
-    options: {
-      responsive: true,
-      cutout: '65%',
-      plugins: {
-        legend: { position: 'bottom', labels: { padding: 12, boxWidth: 12 } }
-      }
-    }
-  });
-}
-
-// ── REVENUE BAR ──
-function renderRevenueChart(data, days) {
-  const step = days <= 14 ? 1 : 7;
-  const labels = [];
-  const revenues = [];
-  for (let i = Math.floor(days/step) - 1; i >= 0; i--) {
-    const start = new Date();
-    start.setDate(start.getDate() - (i+1)*step);
-    const end = new Date();
-    end.setDate(end.getDate() - i*step);
-    const label = start.toLocaleDateString('en-TZ', {month:'short', day:'numeric'});
-    labels.push(label);
-    const rev = data
-      .filter(o => {
-        const d = new Date(o.created_at);
-        return d >= start && d < end && o.status === 'delivered';
-      })
-      .reduce((s,o) => s + (o.total_amount||0), 0);
-    revenues.push(Math.round(rev / 1000));
-  }
-  destroyChart('revenueChart');
-  charts.revenue = new Chart(document.getElementById('revenueChart'), {
-    type: 'bar',
-    data: {
-      labels,
-      datasets: [{
-        label: 'Revenue (TZS 000s)',
-        data: revenues,
-        backgroundColor: 'rgba(255,107,44,0.7)',
-        borderColor: '#FF6B2C',
-        borderWidth: 1,
-        borderRadius: 6,
-      }]
-    },
-    options: {
-      responsive: true,
-      plugins: { legend: { display: false } },
-      scales: {
-        x: { grid: { color: '#1a1a1a' } },
-        y: { grid: { color: '#1a1a1a' }, beginAtZero: true,
-          ticks: { callback: v => 'TZS ' + v + 'k' } }
-      }
-    }
-  });
-}
-
-// ── PAYMENT PIE ──
-function renderPaymentChart(data) {
-  const pays = {mpesa:0, cash:0, tigo_pesa:0, airtel_money:0};
-  data.forEach(o => {
-    const p = o.payment_method?.toLowerCase().replace('-','_') || 'cash';
-    if(pays[p] !== undefined) pays[p]++; else pays.cash++;
-  });
-  destroyChart('paymentChart');
-  charts.payment = new Chart(document.getElementById('paymentChart'), {
-    type: 'pie',
-    data: {
-      labels: ['M-Pesa','Cash','Tigo Pesa','Airtel Money'],
-      datasets: [{
-        data: Object.values(pays),
-        backgroundColor: ['#00A651','#f59e0b','#0066CC','#EF3A24'],
-        borderColor: '#141414',
-        borderWidth: 3,
-      }]
-    },
-    options: {
-      responsive: true,
-      plugins: { legend: { position: 'bottom', labels: { padding: 10, boxWidth: 12 } } }
-    }
-  });
-}
-
-// ── TOP VENDORS ──
-function renderVendorChart(data) {
-  const vendors = {};
-  data.forEach(o => {
-    const v = o.vendor || 'Unknown';
-    vendors[v] = (vendors[v] || 0) + 1;
-  });
-  const sorted = Object.entries(vendors).sort((a,b) => b[1]-a[1]).slice(0,6);
-  destroyChart('vendorChart');
-  charts.vendor = new Chart(document.getElementById('vendorChart'), {
-    type: 'bar',
-    data: {
-      labels: sorted.map(v => v[0].split(' ').slice(0,2).join(' ')),
-      datasets: [{
-        label: 'Orders',
-        data: sorted.map(v => v[1]),
-        backgroundColor: ['#FF6B2C','#f59e0b','#22c55e','#60a5fa','#a78bfa','#f472b6'],
-        borderRadius: 6,
-      }]
-    },
-    options: {
-      responsive: true,
-      indexAxis: 'y',
-      plugins: { legend: { display: false } },
-      scales: {
-        x: { grid: { color: '#1a1a1a' }, beginAtZero: true },
-        y: { grid: { color: '#1a1a1a' } }
-      }
-    }
-  });
-}
-
-// ── STATUS BREAKDOWN ──
-function renderStatusChart(data) {
-  const statuses = {received:0, accepted:0, cooking:0, ready:0, 'on the way':0, delivered:0, cancelled:0};
-  data.forEach(o => { if(statuses[o.status] !== undefined) statuses[o.status]++; });
-  const colors = {
-    received:'#666', accepted:'#3b82f6', cooking:'#f59e0b',
-    ready:'#06b6d4', 'on the way':'#a78bfa', delivered:'#22c55e', cancelled:'#ef4444'
-  };
-  destroyChart('statusChart');
-  charts.status = new Chart(document.getElementById('statusChart'), {
-    type: 'doughnut',
-    data: {
-      labels: Object.keys(statuses).map(s => s.charAt(0).toUpperCase()+s.slice(1)),
-      datasets: [{
-        data: Object.values(statuses),
-        backgroundColor: Object.values(colors),
-        borderColor: '#141414',
-        borderWidth: 3,
-      }]
-    },
-    options: {
-      responsive: true,
-      cutout: '60%',
-      plugins: { legend: { position: 'bottom', labels: { padding: 8, boxWidth: 10, font:{size:11} } } }
-    }
-  });
-}
-
-// ── SHIFT CHART ──
-function renderShiftChart(data) {
-  const dayOrders = data.filter(o => o.shift === 'day' || !o.shift);
-  const nightOrders = data.filter(o => o.shift === 'night');
-  const dayRev = dayOrders.reduce((s,o) => s+(o.total_amount||0), 0);
-  const nightRev = nightOrders.reduce((s,o) => s+(o.total_amount||0), 0);
-  destroyChart('shiftChart');
-  charts.shift = new Chart(document.getElementById('shiftChart'), {
-    type: 'bar',
-    data: {
-      labels: ['Orders', 'Revenue (TZS 000s)'],
-      datasets: [
-        {
-          label: '☀️ Day Shift',
-          data: [dayOrders.length, Math.round(dayRev/1000)],
-          backgroundColor: 'rgba(245,158,11,0.7)',
-          borderRadius: 6,
-        },
-        {
-          label: '🌙 Night Shift',
-          data: [nightOrders.length, Math.round(nightRev/1000)],
-          backgroundColor: 'rgba(167,139,250,0.7)',
-          borderRadius: 6,
-        }
-      ]
-    },
-    options: {
-      responsive: true,
-      plugins: { legend: { position: 'top' } },
-      scales: {
-        x: { grid: { color: '#1a1a1a' } },
-        y: { grid: { color: '#1a1a1a' }, beginAtZero: true }
-      }
-    }
-  });
-}
-
-// ── LIVE FEED ──
-function renderLiveFeed(data) {
-  const recent = [...data].sort((a,b) => new Date(b.created_at)-new Date(a.created_at)).slice(0,15);
-  const statusColors = {
-    received:'#666', accepted:'#3b82f6', cooking:'#f59e0b',
-    ready:'#06b6d4', 'on the way':'#a78bfa', delivered:'#22c55e', cancelled:'#ef4444'
-  };
-  const typeIcons = {food:'🍔', grocery:'🥦', supermarket:'🏪', pharmacy:'💊'};
-  document.getElementById('live-feed').innerHTML = recent.map(o => `
-    <div style="display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid #1a1a1a">
-      <div style="font-size:1.2rem">${typeIcons[o.order_type]||'📦'}</div>
-      <div style="flex:1;min-width:0">
-        <div style="font-weight:700;font-size:.82rem">#${o.id} — ${o.vendor||'—'}</div>
-        <div style="font-size:.74rem;color:#666">${o.customer_name||'Customer'} · TZS ${(o.total_amount||0).toLocaleString()}</div>
-      </div>
-      <div style="text-align:right;flex-shrink:0">
-        <div style="font-size:.72rem;font-weight:700;color:${statusColors[o.status]||'#666'}">${o.status}</div>
-        <div style="font-size:.68rem;color:#444">${new Date(o.created_at).toLocaleTimeString('en-TZ',{hour:'2-digit',minute:'2-digit'})}</div>
-      </div>
+      <span class="badge ${STATUS_BADGES[o.status]||'badge-gray'}">${o.status}</span>
     </div>`).join('');
 }
 
-function destroyChart(id) {
-  if(charts[id.replace('Chart','')]) {
-    charts[id.replace('Chart','')].destroy();
-    delete charts[id.replace('Chart','')];
-  }
-  // Also try direct Chart.js registry
-  const existing = Chart.getChart(id);
-  if(existing) existing.destroy();
+function renderOrdersTable(orders){
+  document.getElementById('orders-tbl').innerHTML=orders.map(o=>`
+    <tr>
+      <td><strong style="color:var(--accent)">${o.id}</strong></td>
+      <td>${o.customer_name||'—'}</td>
+      <td style="font-size:.78rem">${o.customer_phone||'—'}</td>
+      <td>${o.vendor||'—'}</td>
+      <td>${TYPE_ICONS[o.order_type]||'📦'} ${o.order_type||'—'}</td>
+      <td>${o.shift==='night'?'🌙':'☀️'} ${o.shift||'day'}</td>
+      <td><strong>TZS ${(o.total_amount||0).toLocaleString()}</strong></td>
+      <td>${o.payment_method||'—'}</td>
+      <td>${o.driver_name||'<span style="color:var(--red)">None</span>'}</td>
+      <td><span class="badge ${STATUS_BADGES[o.status]||'badge-gray'}">${o.status}</span></td>
+      <td>
+        <select class="status-sel" onchange="updateStatus('${o.id}',this.value)">
+          ${['received','accepted','cooking','ready','on the way','delivered','cancelled'].map(s=>`<option ${s===o.status?'selected':''}>${s}</option>`).join('')}
+        </select>
+      </td>
+      <td style="color:var(--muted);font-size:.72rem">${(o.created_at||'').replace('T',' ').slice(0,16)}</td>
+    </tr>`).join('');
 }
 
-// Load analytics when section is opened
-const _origShowSection = showSection;
-function showSection(name, el) {
-  _origShowSection(name, el);
-  if(name === 'analytics') loadAnalytics();
+async function updateStatus(id,status){
+  try{
+    await sb.from('cs_orders').update({status,updated_at:new Date().toISOString()}).eq('id',id);
+    showToast('✅ #'+id+' → '+status);
+    await loadOrders();
+  }catch(e){showToast('❌ '+e.message);}
 }
 
+function filterOrdersTable(q){
+  const rows=document.getElementById('orders-tbl').querySelectorAll('tr');
+  rows.forEach(r=>r.style.display=r.textContent.toLowerCase().includes(q.toLowerCase())?'':'none');
+}
+function filterByStatus(v){renderOrdersTable(v?allOrders.filter(o=>o.status===v):allOrders);}
+function filterByType(v){renderOrdersTable(v?allOrders.filter(o=>o.order_type===v):allOrders);}
+
+function loadShops(){
+  document.getElementById('shops-tbl').innerHTML=DEMO_SHOPS.map(s=>`
+    <tr>
+      <td><strong>${s.name}</strong></td>
+      <td><span class="badge badge-blue">${s.category}</span></td>
+      <td><span class="badge badge-green">Active</span></td>
+      <td>${s.total_orders}</td>
+      <td>⭐ ${s.rating}</td>
+    </tr>`).join('');
+}
+
+async function loadUsers(){
+  try{
+    const{data}=await sb.from('profiles').select('*').order('created_at',{ascending:false}).limit(50);
+    if(data&&data.length){
+      document.getElementById('users-count').textContent=data.length+' users';
+      document.getElementById('users-tbl').innerHTML=data.map(u=>`
+        <tr>
+          <td>${u.id?.slice(0,8)||'—'}…</td>
+          <td>${u.full_name||'—'}</td>
+          <td>${u.phone||'—'}</td>
+          <td><span class="badge ${u.role==='vendor'?'badge-purple':u.role==='admin'?'badge-red':'badge-blue'}">${u.role||'customer'}</span></td>
+          <td style="color:var(--muted);font-size:.78rem">${(u.created_at||'').split('T')[0]}</td>
+        </tr>`).join('');
+    }
+  }catch(e){}
+}
+
+function renderCharts(orders){
+  const cats={food:0,grocery:0,supermarket:0,pharmacy:0};
+  const statuses={received:0,accepted:0,cooking:0,ready:0,'on the way':0,delivered:0,cancelled:0};
+  orders.forEach(o=>{if(cats[o.order_type]!==undefined)cats[o.order_type]++;if(statuses[o.status]!==undefined)statuses[o.status]++;});
+
+  destroyChart('cat-chart');
+  charts.cat=new Chart(document.getElementById('cat-chart'),{type:'doughnut',data:{labels:['🍔 Food','🥦 Grocery','🏪 Super','💊 Pharmacy'],datasets:[{data:Object.values(cats),backgroundColor:['#f59e0b','#22c55e','#a78bfa','#60a5fa'],borderColor:'#141414',borderWidth:3}]},options:{responsive:true,cutout:'60%',plugins:{legend:{position:'bottom',labels:{padding:8,boxWidth:10,font:{size:11}}}}}});
+
+  destroyChart('status-chart');
+  charts.status=new Chart(document.getElementById('status-chart'),{type:'bar',data:{labels:Object.keys(statuses),datasets:[{data:Object.values(statuses),backgroundColor:Object.keys(statuses).map(s=>STATUS_COLORS[s]||'#666')+'33',borderColor:Object.keys(statuses).map(s=>STATUS_COLORS[s]||'#666'),borderWidth:1,borderRadius:4}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{x:{grid:{color:'#1a1a1a'},ticks:{font:{size:9}}},y:{grid:{color:'#1a1a1a'},beginAtZero:true,ticks:{stepSize:1}}}}});
+}
+
+function renderAnalytics(orders){
+  document.getElementById('a-total').textContent=orders.length;
+  const delivered=orders.filter(o=>o.status==='delivered');
+  const rev=delivered.reduce((s,o)=>s+(o.total_amount||0),0);
+  document.getElementById('a-rev').textContent='TZS '+rev.toLocaleString();
+  document.getElementById('a-avg').textContent='TZS '+(orders.length?Math.round(rev/orders.length):0).toLocaleString();
+  document.getElementById('a-rate').textContent=orders.length?Math.round(delivered.length/orders.length*100)+'%':'0%';
+
+  // Orders over time (last 7 days)
+  const days7=Array.from({length:7},(_,i)=>{const d=new Date();d.setDate(d.getDate()-6+i);return d.toISOString().split('T')[0];});
+  const dayCounts=days7.map(d=>orders.filter(o=>o.created_at?.startsWith(d)).length);
+  const dayRevs=days7.map(d=>Math.round(orders.filter(o=>o.created_at?.startsWith(d)&&o.status==='delivered').reduce((s,o)=>s+(o.total_amount||0),0)/1000));
+
+  destroyChart('orders-chart');
+  charts.ordersA=new Chart(document.getElementById('orders-chart'),{type:'line',data:{labels:days7.map(d=>d.slice(5)),datasets:[{label:'Orders',data:dayCounts,borderColor:'#FF6B2C',backgroundColor:'rgba(255,107,44,.1)',fill:true,tension:.4,pointRadius:3}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{x:{grid:{color:'#1a1a1a'}},y:{grid:{color:'#1a1a1a'},beginAtZero:true,ticks:{stepSize:1}}}}});
+
+  destroyChart('rev-chart');
+  charts.revA=new Chart(document.getElementById('rev-chart'),{type:'bar',data:{labels:days7.map(d=>d.slice(5)),datasets:[{label:'Revenue (TZS 000s)',data:dayRevs,backgroundColor:'rgba(255,107,44,.6)',borderColor:'#FF6B2C',borderRadius:5}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{x:{grid:{color:'#1a1a1a'}},y:{grid:{color:'#1a1a1a'},beginAtZero:true,ticks:{callback:v=>v+'k'}}}}});
+
+  const cats={food:0,grocery:0,supermarket:0,pharmacy:0};
+  const pays={mpesa:0,cash:0,tigo_pesa:0,airtel_money:0};
+  const shifts={day:0,night:0};
+  orders.forEach(o=>{if(cats[o.order_type]!==undefined)cats[o.order_type]++;const p=o.payment_method||'cash';if(pays[p]!==undefined)pays[p]++;if(o.shift==='night')shifts.night++;else shifts.day++;});
+
+  destroyChart('cat2-chart');
+  charts.cat2=new Chart(document.getElementById('cat2-chart'),{type:'doughnut',data:{labels:['Food','Grocery','Super','Pharmacy'],datasets:[{data:Object.values(cats),backgroundColor:['#f59e0b','#22c55e','#a78bfa','#60a5fa'],borderColor:'#141414',borderWidth:3}]},options:{responsive:true,cutout:'55%',plugins:{legend:{position:'bottom',labels:{padding:6,boxWidth:10,font:{size:10}}}}}});
+
+  destroyChart('pay-chart');
+  charts.pay=new Chart(document.getElementById('pay-chart'),{type:'pie',data:{labels:['M-Pesa','Cash','Tigo','Airtel'],datasets:[{data:Object.values(pays),backgroundColor:['#00A651','#f59e0b','#0066CC','#EF3A24'],borderColor:'#141414',borderWidth:3}]},options:{responsive:true,plugins:{legend:{position:'bottom',labels:{padding:6,boxWidth:10,font:{size:10}}}}}});
+
+  destroyChart('shift-chart');
+  charts.shift=new Chart(document.getElementById('shift-chart'),{type:'doughnut',data:{labels:['☀️ Day','🌙 Night'],datasets:[{data:[shifts.day,shifts.night],backgroundColor:['#f59e0b','#a78bfa'],borderColor:'#141414',borderWidth:3}]},options:{responsive:true,cutout:'55%',plugins:{legend:{position:'bottom',labels:{padding:6,boxWidth:10,font:{size:10}}}}}});
+}
+
+function destroyChart(id){const e=Chart.getChart(id);if(e)e.destroy();}
+
+function showSec(name,el){
+  document.querySelectorAll('.page-section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('sec-'+name).classList.add('active');
+  el.classList.add('active');
+  document.getElementById('page-title').textContent=el.querySelector('span')?.textContent||name;
+  if(name==='analytics')renderAnalytics(allOrders);
+}
+
+function startClock(){setInterval(()=>{document.getElementById('live-clock').textContent=new Date().toLocaleTimeString('en-TZ',{hour:'2-digit',minute:'2-digit',second:'2-digit'});},1000);}
+function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3000);}
 </script>
 </body>
 </html>
