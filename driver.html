@@ -339,16 +339,24 @@ function calcDist(lat1,lng1,lat2,lng2){
   return (R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a))).toFixed(1);
 }
 
-// LOAD ORDERS
+// LOAD ORDERS — real data only, no demo fallback
 async function loadOrders(){
   try{
     const today=new Date().toISOString().split('T')[0];
-    const{data}=await sb.from('cs_orders').select('*')
+    const{data,error}=await sb.from('cs_orders').select('*')
       .gte('created_at',today+'T00:00:00')
       .in('status',['received','accepted','cooking','ready','on the way','delivered'])
       .order('created_at',{ascending:false});
-    allOrders=data||[];
-  }catch(e){allOrders=[];}
+    if(!error&&data){
+      allOrders=data;
+    } else {
+      console.log('Load error:',error);
+      allOrders=[];
+    }
+  }catch(e){
+    console.log('Orders error:',e);
+    allOrders=[];
+  }
 
   const readyCount=allOrders.filter(o=>o.status==='ready').length;
   document.getElementById('orders-badge').textContent=readyCount;
@@ -369,7 +377,11 @@ function renderOrderSections(){
 
 function renderSection(elId,orders,type){
   const el=document.getElementById(elId);
-  if(!orders.length){el.innerHTML=`<div style="color:var(--muted);font-size:.78rem;padding:8px 0">No orders</div>`;return;}
+  if(!orders.length){
+    const msgs={ready:'No orders ready for pickup yet',cooking:'No orders being prepared',onway:'No orders on the way',delivered:'No deliveries today yet'};
+    el.innerHTML=`<div style="color:var(--muted);font-size:.76rem;padding:8px 0;font-style:italic">${msgs[type]||'No orders'}</div>`;
+    return;
+  }
   el.innerHTML=orders.map(o=>{
     const dist=calcDist(driverLat,driverLng,o.vendor_lat||driverLat,o.vendor_lng||driverLng);
     const isActive=activeOrder&&activeOrder.id===o.id;
