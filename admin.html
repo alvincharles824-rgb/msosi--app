@@ -286,13 +286,7 @@ Chart.defaults.color='#777';Chart.defaults.borderColor='#262626';Chart.defaults.
 
 let allOrders=[],charts={};
 
-const DEMO_SHOPS=[
-  {name:'Mama Africa Kitchen',category:'food',status:'active',total_orders:148,rating:4.8},
-  {name:'FreshMart Superstore',category:'supermarket',status:'active',total_orders:97,rating:4.5},
-  {name:'Dawa Plus Pharmacy',category:'pharmacy',status:'active',total_orders:63,rating:4.9},
-  {name:'Green Leaf Groceries',category:'grocery',status:'active',total_orders:212,rating:4.6},
-  {name:'Zanzibar Bites',category:'food',status:'active',total_orders:88,rating:4.7},
-];
+const DEMO_SHOPS=[];
 
 window.addEventListener('DOMContentLoaded',async()=>{
   const{data:{session}}=await sb.auth.getSession();
@@ -332,8 +326,11 @@ async function loadAll(){
 async function loadOrders(){
   try{
     const{data,error}=await sb.from('cs_orders').select('*').order('created_at',{ascending:false}).limit(200);
-    allOrders=(!error&&data&&data.length)?data:generateDemoOrders();
-  }catch(e){allOrders=generateDemoOrders();}
+    allOrders=(!error&&data)?data:[];
+  }catch(e){
+    console.log('Load orders error:',e);
+    allOrders=[];
+  }
 
   const active=allOrders.filter(o=>!['delivered','cancelled'].includes(o.status)).length;
   const todayDelivered=allOrders.filter(o=>o.status==='delivered'&&o.created_at?.startsWith(new Date().toISOString().split('T')[0])).length;
@@ -350,20 +347,16 @@ async function loadOrders(){
   renderAnalytics(allOrders);
   document.getElementById('orders-count').textContent=allOrders.length+' orders';
   document.getElementById('feed-count').textContent=allOrders.length+' total';
+
+  // Show empty state in feed if no orders
+  if(!allOrders.length){
+    document.getElementById('live-feed').innerHTML='<div style="padding:40px;text-align:center;color:var(--muted)"><div style="font-size:2rem;margin-bottom:10px">📭</div><div style="font-weight:700;margin-bottom:6px">No orders yet</div><div style="font-size:.8rem">Place an order from the customer app to see it here</div></div>';
+    document.getElementById('orders-tbl').innerHTML='<tr><td colspan="12" style="color:var(--muted);text-align:center;padding:40px">No orders yet — waiting for real orders from customers</td></tr>';
+  }
 }
 
 function generateDemoOrders(){
-  const vendors=['Mama Africa Kitchen','FreshMart Superstore','Dawa Plus','Green Leaf','Zanzibar Bites'];
-  const types=['food','supermarket','pharmacy','grocery','food'];
-  const statuses=['received','accepted','cooking','ready','on the way','delivered','cancelled'];
-  const payments=['mpesa','cash','tigo_pesa','airtel_money'];
-  return Array.from({length:15},(_,i)=>({
-    id:'ORD-'+(100+i),customer_name:'Customer '+(i+1),customer_phone:'+255744'+(100000+i),
-    vendor:vendors[i%5],order_type:types[i%5],shift:i%3===0?'night':'day',
-    total_amount:Math.floor(Math.random()*15000)+2000,payment_method:payments[i%4],
-    driver_name:i%3===0?'Juma Hassan':'',status:statuses[i%7],
-    notes:'Order items',created_at:new Date(Date.now()-i*3600000).toISOString()
-  }));
+  return []; // No demo data — real orders only
 }
 
 const STATUS_COLORS={received:'var(--muted)',accepted:'var(--blue)',cooking:'var(--yellow)',ready:'var(--cyan)','on the way':'var(--purple)',delivered:'var(--green)',cancelled:'var(--red)'};
@@ -419,15 +412,24 @@ function filterOrdersTable(q){
 function filterByStatus(v){renderOrdersTable(v?allOrders.filter(o=>o.status===v):allOrders);}
 function filterByType(v){renderOrdersTable(v?allOrders.filter(o=>o.order_type===v):allOrders);}
 
-function loadShops(){
-  document.getElementById('shops-tbl').innerHTML=DEMO_SHOPS.map(s=>`
-    <tr>
-      <td><strong>${s.name}</strong></td>
-      <td><span class="badge badge-blue">${s.category}</span></td>
-      <td><span class="badge badge-green">Active</span></td>
-      <td>${s.total_orders}</td>
-      <td>⭐ ${s.rating}</td>
-    </tr>`).join('');
+async function loadShops(){
+  try{
+    const{data,error}=await sb.from('shops').select('*').order('created_at',{ascending:false});
+    if(!error&&data&&data.length){
+      document.getElementById('shops-tbl').innerHTML=data.map(s=>`
+        <tr>
+          <td><strong>${s.name}</strong></td>
+          <td><span class="badge badge-blue">${s.category||'—'}</span></td>
+          <td>${s.is_active?'<span class="badge badge-green">Active</span>':'<span class="badge badge-yellow">Inactive</span>'}</td>
+          <td>${s.total_orders||0}</td>
+          <td>${s.rating>0?'⭐ '+s.rating:'—'}</td>
+        </tr>`).join('');
+    } else {
+      document.getElementById('shops-tbl').innerHTML='<tr><td colspan="5" style="color:var(--muted);text-align:center;padding:30px">No shops registered yet. Vendors sign up to appear here.</td></tr>';
+    }
+  }catch(e){
+    document.getElementById('shops-tbl').innerHTML='<tr><td colspan="5" style="color:var(--muted);text-align:center;padding:30px">Connect to Supabase to view shops.</td></tr>';
+  }
 }
 
 async function loadUsers(){
